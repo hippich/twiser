@@ -1,9 +1,12 @@
+/* eslint no-underscore-dangle: 0 */
 var debug = require('debug')('twiser');
 var webdriverio = require('webdriverio');
 var browserevent = require('browserevent');
 var _ = require('lodash');
 
-var Api = function(options) {
+var Client = function(options) {
+    var client = this;
+
     this.options = _.extend({
         username: false,
         password: false
@@ -15,124 +18,122 @@ var Api = function(options) {
         }
     }, this.options.remoteOptions);
 
-    this.client = webdriverio.remote(remoteOptions).init();
-    browserevent.init(this.client);
-};
+    this.api = webdriverio.remote(remoteOptions).init();
+    this.api._client = this;
 
-Api.prototype.login = function() {
-    var api = this;
+    browserevent.init(this.api);
 
-    if (!this.options.username || !this.options.password) {
-        throw new Error('Login requested, but no username/password provided');
-    }
+    this.api.addCommand('login', function(cb) {
+        if (!client.options.username || !client.options.password) {
+            return cb( new Error('Login requested, but no username/password provided') );
+        }
 
-    return api.client
-        .url(function(err, res) {
-            if (err) {
-                throw new Error(err);
-            }
+        this.url(function(err, res) {
+                if (err) {
+                    return cb(err);
+                }
 
-            if (! res.value.match(/^https\:\/\/twitter\.com\/login/i) ) {
-                return api.client.url('https://twitter.com/login');
-            }
-        })
-        .title(function(err, res) {
-            if (err) {
-                throw new Error(err);
-            }
+                if (! res.value.match(/^https\:\/\/twitter\.com\/login/i) ) {
+                    return this.url('https://twitter.com/login');
+                }
+            })
+            .title(function(err, res) {
+                if (err) {
+                    return cb(err);
+                }
 
-            var title = res.value;
+                var title = res.value;
 
-            if (title.match(/login/i)) {
-                debug('Logging in with username: %s and password: %s', api.options.username, api.options.password);
+                if (title.match(/login/i)) {
+                    debug('Logging in with username: %s and password: %s', client.options.username, client.options.password);
 
-                return api.client
-                  .setValue('#page-container .js-username-field', api.options.username)
-                  .setValue('#page-container .js-password-field', api.options.password)
-                  .click('#page-container button.submit')
-                ;
-            }
-            else {
-                debug('Already logged in');
-            }
-        })
-        .url(function(err, res) {
-            if (err) {
-                throw new Error(err);
-            }
+                    return this.setValue('#page-container .js-username-field', client.options.username)
+                               .setValue('#page-container .js-password-field', client.options.password)
+                               .click('#page-container button.submit');
+                }
+                else {
+                    debug('Already logged in');
+                }
+            })
+            .url(function(err, res) {
+                if (err) {
+                    return cb(err);
+                }
 
-            var url = res.value;
+                var url = res.value;
 
-            if (url.match(/login\/error/i)) {
-                return api.client.getText('.message-text', function(err, text) {
-                    if (err) {
-                        throw new Error(err);
-                    }
-
-                    throw new Error('Unable to login. Reason: ' + text);
-                });
-            }
-        })
-    ;
-};
-
-Api.prototype.logout = function() {
-    return this.client
-        .url('https://twitter.com/logout')
-        .click('.signout-wrapper button.primary-btn')
-    ;
-};
-
-Api.prototype.setNewPassword = function(newPassword) {
-    var api = this;
-
-    return this.client
-        .url('https://twitter.com/settings/password')
-        .title(function(err, res) {
-            if (err) {
-                throw new Error(err);
-            }
-
-            if (res.value.match(/login/i)) {
-                return api.login();
-            }
-
-            if (! res.value.match(/settings/i)) {
-                throw new Error('Not sure where I ended up :(');
-            }
-        })
-        .setValue('#current_password', api.options.password)
-        .setValue('#user_password', newPassword)
-        .setValue('#user_password_confirmation', newPassword)
-        .click('#settings_save')
-        .url(function(err, res) {
-            if (err) {
-                throw new Error(err);
-            }
-
-            if (res.value !== 'https://twitter.com/settings/passwords/password_reset_confirmation') {
-                debug('Password did not change successfuly');
-
-                return this
-                    .getText('#settings-alert-box h4', function(err, text) {
-                        debug('got text');
-
+                if (url.match(/login\/error/i)) {
+                    return this.getText('.message-text', function(err, text) {
                         if (err) {
-                            throw new Error(err);
+                            return cb(err);
                         }
 
-                        throw new Error('Unable to change password: ' + text);
-                    })
-                ;
-            }
+                        return cb( new Error('Unable to login. Reason: ' + text) );
+                    });
+                }
 
-            api.options.password = newPassword;
-        })
-    ;
+                return cb(null);
+            });
+    });
+
+    this.api.addCommand('logout', function(cb) {
+        this.url('https://twitter.com/logout')
+            .click('.signout-wrapper button.primary-btn')
+            .call(cb);
+    });
+
+    this.api.addCommand('setNewPassword', function(newPassword, cb) {
+        debug('Changing password. Old: %s, New: %s', client.options.password, newPassword);
+
+        this.url('https://twitter.com/settings/password')
+            .title(function(err, res) {
+                if (err) {
+                    return cb(err);
+                }
+
+                if (res.value.match(/login/i)) {
+                    return this.login();
+                }
+
+                if (! res.value.match(/settings/i)) {
+                    return cb( new Error('Not sure where I ended up :(') );
+                }
+            })
+            .setValue('#current_password', client.options.password)
+            .setValue('#user_password', newPassword)
+            .setValue('#user_password_confirmation', newPassword)
+            .click('#settings_save')
+            .url(function(err, res) {
+                if (err) {
+                    return cb(err);
+                }
+
+                if (res.value !== 'https://twitter.com/settings/passwords/password_reset_confirmation') {
+                    debug('Password did not change successfuly');
+
+                    return this
+                        .getText('#settings-alert-box h4', function(err, text) {
+                            debug('got text');
+
+                            if (err) {
+                                return cb(err);
+                            }
+
+                            return cb( new Error('Unable to change password: ' + text) );
+                        })
+                    ;
+                }
+
+                this._client.options.password = newPassword;
+
+                return cb(null);
+            });
+    });
+
+    this.api.addCommand('shutdown', function(cb) {
+        this.end();
+        cb(null);
+    });
 };
 
-Api.prototype.shutdown = function() {
-    this.client.end();
-};
-
-module.exports = Api;
+module.exports = Client;

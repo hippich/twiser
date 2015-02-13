@@ -1,17 +1,13 @@
-var Api = require('../index');
+var Client = require('../index');
 
-var api = new Api({
+var client = new Client({
     username: process.env.TWITTER_USERNAME,
     password: process.env.TWITTER_PASSWORD
 });
 
+var api = client.api;
+
 api.setNewPassword('qwerty123')
-   .call(function() {
-       api.logout();
-   })
-   .call(function() {
-       api.setNewPassword(process.env.TWITTER_PASSWORD);
-   })
-   .call(function() {
-       api.shutdown();
-   });
+   .logout()
+   .setNewPassword(process.env.TWITTER_PASSWORD)
+   .shutdown();
