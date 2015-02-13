@@ -1,4 +1,4 @@
-/* eslint no-underscore-dangle: 0 */
+/* eslint no-underscore-dangle: 0, handle-callback-err: 0 */
 var debug = require('debug')('twiser');
 var webdriverio = require('webdriverio');
 var browserevent = require('browserevent');
@@ -172,6 +172,16 @@ var Client = function(options) {
 
     this.api.addCommand('saveProfile', function(cb) {
         this.click('.ProfilePage-saveButton')
+            .pause(500)
+            .getText('.message-text', function(err, text) {
+                debug('Got message: %s', text);
+
+                if (err) { return cb(err); }
+
+                if (text.indexOf('Your profile has been saved.') === -1) {
+                    return cb(new Error('Unable to save profile info: ' + text));
+                }
+            })
             .call(cb);
     });
 
@@ -185,20 +195,16 @@ var Client = function(options) {
 
         this.goToProfile()
             .getText('.ProfileHeaderCard-nameLink', function(err, text) {
-                if (err) { return cb(err); }
                 profile.name = text;
             })
             .getText('.ProfileHeaderCard-bio', function(err, text) {
-                if (err) { return cb(err); }
                 profile.bio = text;
             })
             .getText('.ProfileHeaderCard-locationText', function(err, text) {
-                if (err) { return cb(err); }
                 profile.location = text;
             })
-            .getText('.ProfileHeaderCard-urlText a', function(err, text) {
-                if (err) { return cb(err); }
-                profile.url = text;
+            .getAttribute('.ProfileHeaderCard-urlText a', 'title', function(err, title) {
+                profile.url = title;
             })
             .call(function() {
                 cb(null, profile);
