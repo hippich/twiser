@@ -134,6 +134,99 @@ var Client = function(options) {
         this.end();
         cb(null);
     });
+
+    this.api.addCommand('goToProfile', function(profile, cb) {
+        if (! cb) {
+            cb = profile;
+            profile = null;
+        }
+
+        var id = profile || client.options.username;
+
+        if (! id) {
+            return cb(new Error('No username available'));
+        }
+
+        var url = 'https://twitter.com/' + id;
+
+        debug('Checking if we are already on profile page: %s', url);
+
+        this.url(function(err, res) {
+                if (err) {
+                    return cb(err);
+                }
+
+                if (res.value !== url) {
+                    return this.url(url);
+                }
+            })
+            .call(cb);
+    });
+
+    this.api.addCommand('editProfile', function(cb) {
+        this.login()
+            .goToProfile()
+            .click('[data-scribe-element="profile_edit_button"]')
+            .call(cb);
+    });
+
+    this.api.addCommand('saveProfile', function(cb) {
+        this.click('.ProfilePage-saveButton')
+            .call(cb);
+    });
+
+    this.api.addCommand('getProfileInfo', function(cb) {
+        var profile = {
+            name     : '',
+            bio      : '',
+            location : '',
+            url      : ''
+        };
+
+        this.goToProfile()
+            .getText('.ProfileHeaderCard-nameLink', function(err, text) {
+                if (err) { return cb(err); }
+                profile.name = text;
+            })
+            .getText('.ProfileHeaderCard-bio', function(err, text) {
+                if (err) { return cb(err); }
+                profile.bio = text;
+            })
+            .getText('.ProfileHeaderCard-locationText', function(err, text) {
+                if (err) { return cb(err); }
+                profile.location = text;
+            })
+            .getText('.ProfileHeaderCard-urlText a', function(err, text) {
+                if (err) { return cb(err); }
+                profile.url = text;
+            })
+            .call(function() {
+                cb(null, profile);
+            });
+    });
+
+    this.api.addCommand('setProfileInfo', function(profile, cb) {
+        debug('Setting profile info: %j', profile);
+
+        if (profile.name) {
+            this.setValue('#user_name', profile.name);
+        }
+
+        if (profile.bio) {
+            this.setValue('#user_description', profile.bio);
+        }
+
+        if (profile.location) {
+            this.setValue('#user_location', profile.location);
+        }
+
+        if (profile.url) {
+            this.setValue('#user_url', profile.url);
+        }
+
+        this.call(cb);
+    });
+
 };
 
 module.exports = Client;

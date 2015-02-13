@@ -1,3 +1,4 @@
+/* eslint no-space-before-semi:0 */
 var Client = require('../index');
 
 var client = new Client({
@@ -7,7 +8,25 @@ var client = new Client({
 
 var api = client.api;
 
-api.setNewPassword('qwerty123')
+var origProfile;
+
+api
+   .getProfileInfo(function(err, res) {
+       if (err) {
+           throw err;
+       }
+
+       origProfile = res;
+   })
+   .editProfile()
+   .setProfileInfo({ name: 'Something' })
+   .saveProfile()
+   .editProfile()
+   .call(function() {
+       this.setProfileInfo(origProfile);
+   })
+   .saveProfile()
+   .setNewPassword('qwerty123')
    .logout()
    .setNewPassword(process.env.TWITTER_PASSWORD)
-   .shutdown();
+;
