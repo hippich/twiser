@@ -173,9 +173,7 @@ var Client = function(options) {
     this.api.addCommand('saveProfile', function(cb) {
         this.click('.ProfilePage-saveButton')
             .pause(500)
-            .getText('.message-text', function(err, text) {
-                debug('Got message: %s', text);
-
+            .getActionMessage(function(err, text) {
                 if (err) { return cb(err); }
 
                 if (text.indexOf('Your profile has been saved.') === -1) {
@@ -183,6 +181,19 @@ var Client = function(options) {
                 }
             })
             .call(cb);
+    });
+
+    this.api.addCommand('getActionMessage', function(cb) {
+        this.getText('.message-text', function(err, text) {
+            if (err) { return cb(err); }
+
+            if (text) {
+                debug('Got message: %s', text);
+                return cb(null, text);
+            }
+
+            cb(null);
+        });
     });
 
     this.api.addCommand('getProfileInfo', function(cb) {
@@ -233,6 +244,74 @@ var Client = function(options) {
         this.call(cb);
     });
 
+    this.api.addCommand('postUpdate', function(update, cb) {
+        if (_.isString(update)) {
+            update = {
+                post: update
+            };
+        }
+
+        this.login();
+
+        var selectorPrefix = '.timeline-tweet-box form';
+
+        if (update.inreply) {
+            selectorPrefix = '.inline-reply-tweetbox';
+        }
+
+        if (update.inreply) {
+            this.goToStatus(update.inreply);
+        }
+
+
+        this.click(selectorPrefix + ' .tweet-box')
+            .keys(_.repeat("\b", 140))
+            .keys(update.post);
+
+        if (update.image) {
+            this.chooseFile(selectorPrefix + ' .file-input[type=file]', update.image)
+                .waitFor(selectorPrefix + ' .previews .preview')
+                .pause(1000);
+        }
+
+        this.scroll(selectorPrefix + ' .Icon--tweet')
+            .click(selectorPrefix + ' .Icon--tweet')
+            .getActionMessage(function(err, text) {
+                if (text) {
+                    return cb('Unable to post update: ' + text);
+                }
+            })
+            .waitFor("//div[contains(concat(' ',normalize-space(@class),' '),' my-tweet ')]//span[contains(text(), 'now')]", 10000)
+            .getAttribute('.stream-container .my-tweet', 'data-tweet-id', function(err, ids) {
+                var id;
+
+                if (err) { return cb(err); }
+
+                if (! _.isArray(ids)) {
+                    id = ids;
+                }
+                else {
+                    id = ids.shift();
+                }
+
+                debug('New tweet posted. Id %s', id);
+
+                cb(null, id);
+            });
+    });
+
+    this.api.addCommand('deleteTweet', function(id, cb) {
+        this.goToStatus(id)
+            .click('[data-item-id="' + id + '"] .ProfileTweet-action--more .ProfileTweet-actionButton')
+            .click('[data-item-id="' + id + '"] li.js-actionDelete button')
+            .click('#delete-tweet-dialog .delete-action')
+            .call(cb);
+    });
+
+    this.api.addCommand('goToStatus', function(id, cb) {
+        this.url('https://twitter.com/' + client.options.username + '/status/' + id)
+            .call(cb);
+    });
 };
 
 module.exports = Client;

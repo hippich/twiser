@@ -1,5 +1,6 @@
 /* eslint no-space-before-semi:0 */
 var Client = require('../index');
+var path = require('path');
 
 var client = new Client({
     username: process.env.TWITTER_USERNAME,
@@ -8,9 +9,29 @@ var client = new Client({
 
 var api = client.api;
 
-var origProfile;
+var origProfile, testTweetId, testReplyId;
 
 api
+   .postUpdate({
+       post  : 'Something to test ' + Math.random(),
+       image : path.resolve(__dirname, 'test.jpg')
+   }, function(err, id) {
+       if (err) { throw err; }
+       testTweetId = id;
+   })
+   .call(function() {
+       return api.postUpdate({
+           post    : 'Something to test reply ' + Math.random(),
+           inreply : testTweetId
+       }, function(err, id) {
+           if (err) { throw err; }
+           testReplyId = id;
+       });
+   })
+   .call(function() {
+       return api.deleteTweet(testReplyId)
+                 .deleteTweet(testTweetId);
+   })
    .getProfileInfo(function(err, res) {
        if (err) {
            throw err;
@@ -26,7 +47,7 @@ api
        this.setProfileInfo(origProfile);
    })
    .saveProfile()
-   .setNewPassword('qwerty123')
+   .setNewPassword('qwerty123456')
    .logout()
    .setNewPassword(process.env.TWITTER_PASSWORD)
 ;
