@@ -172,11 +172,10 @@ var Client = function(options) {
 
     this.api.addCommand('saveProfile', function(cb) {
         this.click('.ProfilePage-saveButton')
-            .pause(500)
             .getActionMessage(function(err, text) {
                 if (err) { return cb(err); }
 
-                if (text.indexOf('Your profile has been saved.') === -1) {
+                if (text && text.indexOf('Your profile has been saved.') === -1) {
                     return cb(new Error('Unable to save profile info: ' + text));
                 }
             })
@@ -311,6 +310,76 @@ var Client = function(options) {
     this.api.addCommand('goToStatus', function(id, cb) {
         this.url('https://twitter.com/' + client.options.username + '/status/' + id)
             .call(cb);
+    });
+
+    this.api.addCommand('goToNotificationsSettings', function(cb) {
+        this.login()
+            .url('https://twitter.com/settings/notifications')
+            .call(cb);
+    });
+
+    this.api.addCommand('turnOffEmailNotifications', function(cb) {
+        this.goToNotificationsSettings()
+            .isExisting('#notifications-global-off', function(err, res) {
+                if (err) { cb(err); }
+
+                if (! res) {
+                    debug('Notifications already turned off');
+                    return cb(null);
+                }
+
+                return this.click('#notifications-global-off');
+            })
+            .call(cb);
+    });
+
+    this.api.addCommand('turnOnEmailNotifications', function(cb) {
+        this.goToNotificationsSettings()
+            .isExisting('#notifications-global-on', function(err, res) {
+                if (err) { cb(err); }
+
+                if (! res) {
+                    debug('Notifications already turned on');
+                    return cb(null);
+                }
+
+                return this.click('#notifications-global-on');
+            })
+            .call(cb);
+    });
+
+    this.api.addCommand('changeNotificationsSettings', function(settings, cb) {
+        var api = this;
+
+        api.goToNotificationsSettings();
+
+        if (! _.isObject(settings)) {
+            return cb(new Error('`settings` should be object with following possibble options: ' +
+                                'send_favorited_email,send_favorited_mention_email,send_retweeted_email,' +
+                                'send_retweeted_mention_email,send_mention_email,send_new_friend_email,' +
+                                'send_new_direct_text_email,send_shared_tweet_email,send_address_book_notification_email,' +
+                                'send_favorited_retweet_email,send_retweeted_retweet_email,network_digest_schedule,' +
+                                'send_network_activity_email,performance_digest_schedule,send_magic_recs_email,' +
+                                'send_email_newsletter,send_activation_email,send_resurrection_email_1,' +
+                                'send_partner_email,send_survey_email,send_follow_recs_email,send_similar_people_email'));
+        }
+
+        var res = _.forOwn(settings, function(v, k) {
+            api.getAttribute('#' + k, 'checked', function(err, value) {
+                if (err) { cb(err); return false; }
+
+                if ((value && !v) || (!value && v)) {
+                    return this.click('#' + k);
+                }
+            });
+        });
+
+        if (! res) {
+            return false;
+        }
+
+        api.click('#settings_save')
+           .call(cb);
     });
 };
 

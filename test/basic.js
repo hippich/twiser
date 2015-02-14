@@ -1,4 +1,4 @@
-/* eslint no-space-before-semi:0 */
+/* eslint no-space-before-semi:0, camelcase: 0 */
 var Client = require('../index');
 var path = require('path');
 
@@ -12,6 +12,10 @@ var api = client.api;
 var origProfile, testTweetId, testReplyId;
 
 api
+   .changeNotificationsSettings({ send_favorited_email: false })
+   .changeNotificationsSettings({ send_favorited_email: true })
+   .turnOffEmailNotifications()
+   .turnOnEmailNotifications()
    .postUpdate({
        post  : 'Something to test ' + Math.random(),
        image : path.resolve(__dirname, 'test.jpg')
