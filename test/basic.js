@@ -12,6 +12,7 @@ var api = client.api;
 var origProfile, testTweetId, testReplyId;
 
 api
+   .switchTo('streamHomePage')
    .changeNotificationsSettings({ send_favorited_email: false })
    .changeNotificationsSettings({ send_favorited_email: true })
    .turnOffEmailNotifications()

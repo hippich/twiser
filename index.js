@@ -34,25 +34,41 @@ var Client = function(options) {
     });
 };
 
-Client.prototype.api = {};
+var api = {};
 
-Client.prototype.api.mainWindow = function(cb) {
-    var client = this._client;
+api.switchTo = function(id, cb) {
+    var handle = this._client.windows[id];
 
-    debug('Switching to main window: %s', client.windows.main);
+    if (! handle) {
+        this.newWindow('about:blank', '', '', function(err) {
+            if (err) { return cb(err); }
 
-    this.window(client.windows.main)
-        .call(cb);
+            return this.windowHandle(function(err, res) {
+                if (err) { return cb(err); }
+
+                debug('New window opened - %s - %s', id, res.value);
+
+                this._client.windows[id] = res.value;
+                cb(null, res.value);
+            });
+        });
+    }
+    else {
+        this.window(handle)
+            .call(function() {
+                cb(null, handle);
+            });
+    }
 };
 
-Client.prototype.api.login = function(cb) {
+api.login = function(cb) {
     var client = this._client;
 
     if (!client.options.username || !client.options.password) {
         return cb( new Error('Login requested, but no username/password provided') );
     }
 
-    this.mainWindow()
+    this.switchTo('main')
         .url(function(err, res) {
             if (err) {
                 return cb(err);
@@ -101,19 +117,19 @@ Client.prototype.api.login = function(cb) {
         });
 };
 
-Client.prototype.api.logout = function(cb) {
-    this.mainWindow()
+api.logout = function(cb) {
+    this.switchTo('main')
         .url('https://twitter.com/logout')
         .click('.signout-wrapper button.primary-btn')
         .call(cb);
 };
 
-Client.prototype.api.setNewPassword = function(newPassword, cb) {
+api.setNewPassword = function(newPassword, cb) {
     var client = this._client;
 
     debug('Changing password. Old: %s, New: %s', client.options.password, newPassword);
 
-    this.mainWindow()
+    this.switchTo('main')
         .url('https://twitter.com/settings/password')
         .title(function(err, res) {
             if (err) {
@@ -159,12 +175,12 @@ Client.prototype.api.setNewPassword = function(newPassword, cb) {
         });
 };
 
-Client.prototype.api.shutdown = function(cb) {
+api.shutdown = function(cb) {
     this.end();
     cb(null);
 };
 
-Client.prototype.api.goToProfile = function(profile, cb) {
+api.goToProfile = function(profile, cb) {
     var client = this._client;
 
     if (! cb) {
@@ -182,7 +198,7 @@ Client.prototype.api.goToProfile = function(profile, cb) {
 
     debug('Checking if we are already on profile page: %s', url);
 
-    this.mainWindow()
+    this.switchTo('main')
         .url(function(err, res) {
             if (err) {
                 return cb(err);
@@ -195,16 +211,16 @@ Client.prototype.api.goToProfile = function(profile, cb) {
         .call(cb);
 };
 
-Client.prototype.api.editProfile = function(cb) {
-    this.mainWindow()
+api.editProfile = function(cb) {
+    this.switchTo('main')
         .login()
         .goToProfile()
         .click('[data-scribe-element="profile_edit_button"]')
         .call(cb);
 };
 
-Client.prototype.api.saveProfile = function(cb) {
-    this.mainWindow()
+api.saveProfile = function(cb) {
+    this.switchTo('main')
         .click('.ProfilePage-saveButton')
         .getActionMessage(function(err, text) {
             if (err) { return cb(err); }
@@ -216,8 +232,8 @@ Client.prototype.api.saveProfile = function(cb) {
         .call(cb);
 };
 
-Client.prototype.api.getActionMessage = function(cb) {
-    this.mainWindow()
+api.getActionMessage = function(cb) {
+    this.switchTo('main')
         .getText('.message-text', function(err, text) {
             if (err) { return cb(err); }
 
@@ -230,7 +246,7 @@ Client.prototype.api.getActionMessage = function(cb) {
         });
 };
 
-Client.prototype.api.getProfileInfo = function(cb) {
+api.getProfileInfo = function(cb) {
     var profile = {
         name     : '',
         bio      : '',
@@ -238,7 +254,7 @@ Client.prototype.api.getProfileInfo = function(cb) {
         url      : ''
     };
 
-    this.mainWindow()
+    this.switchTo('main')
         .goToProfile()
         .getText('.ProfileHeaderCard-nameLink', function(err, text) {
             profile.name = text;
@@ -257,10 +273,10 @@ Client.prototype.api.getProfileInfo = function(cb) {
         });
 };
 
-Client.prototype.api.setProfileInfo = function(profile, cb) {
+api.setProfileInfo = function(profile, cb) {
     debug('Setting profile info: %j', profile);
 
-    this.mainWindow();
+    this.switchTo('main');
 
     if (profile.name) {
         this.setValue('#user_name', profile.name);
@@ -281,14 +297,14 @@ Client.prototype.api.setProfileInfo = function(profile, cb) {
     this.call(cb);
 };
 
-Client.prototype.api.postUpdate = function(update, cb) {
+api.postUpdate = function(update, cb) {
     if (_.isString(update)) {
         update = {
             post: update
         };
     }
 
-    this.mainWindow()
+    this.switchTo('main')
         .login();
 
     var selectorPrefix = '.timeline-tweet-box form';
@@ -315,7 +331,7 @@ Client.prototype.api.postUpdate = function(update, cb) {
     this.scroll(selectorPrefix + ' .Icon--tweet')
         .click(selectorPrefix + ' .Icon--tweet')
         .getActionMessage(function(err, text) {
-            if (text) {
+            if (text && !text.match(/Your tweet.+has been sent\!/)) {
                 return cb('Unable to post update: ' + text);
             }
         })
@@ -338,8 +354,8 @@ Client.prototype.api.postUpdate = function(update, cb) {
         });
 };
 
-Client.prototype.api.deleteTweet = function(id, cb) {
-    this.mainWindow()
+api.deleteTweet = function(id, cb) {
+    this.switchTo('main')
         .goToStatus(id)
         .click('[data-item-id="' + id + '"] .ProfileTweet-action--more .ProfileTweet-actionButton')
         .click('[data-item-id="' + id + '"] li.js-actionDelete button')
@@ -347,23 +363,23 @@ Client.prototype.api.deleteTweet = function(id, cb) {
         .call(cb);
 };
 
-Client.prototype.api.goToStatus = function(id, cb) {
+api.goToStatus = function(id, cb) {
     var client = this._client;
 
-    this.mainWindow()
+    this.switchTo('main')
         .url('https://twitter.com/' + client.options.username + '/status/' + id)
         .call(cb);
 };
 
-Client.prototype.api.goToNotificationsSettings = function(cb) {
-    this.mainWindow()
+api.goToNotificationsSettings = function(cb) {
+    this.switchTo('main')
         .login()
         .url('https://twitter.com/settings/notifications')
         .call(cb);
 };
 
-Client.prototype.api.turnOffEmailNotifications = function(cb) {
-    this.mainWindow()
+api.turnOffEmailNotifications = function(cb) {
+    this.switchTo('main')
         .goToNotificationsSettings()
         .isExisting('#notifications-global-off', function(err, res) {
             if (err) { cb(err); }
@@ -378,8 +394,8 @@ Client.prototype.api.turnOffEmailNotifications = function(cb) {
         .call(cb);
 };
 
-Client.prototype.api.turnOnEmailNotifications = function(cb) {
-    this.mainWindow()
+api.turnOnEmailNotifications = function(cb) {
+    this.switchTo('main')
         .goToNotificationsSettings()
         .isExisting('#notifications-global-on', function(err, res) {
             if (err) { cb(err); }
@@ -394,10 +410,10 @@ Client.prototype.api.turnOnEmailNotifications = function(cb) {
         .call(cb);
 };
 
-Client.prototype.api.changeNotificationsSettings = function(settings, cb) {
+api.changeNotificationsSettings = function(settings, cb) {
     var api = this;
 
-    this.mainWindow()
+    this.switchTo('main')
         .goToNotificationsSettings();
 
     if (! _.isObject(settings)) {
@@ -429,7 +445,9 @@ Client.prototype.api.changeNotificationsSettings = function(settings, cb) {
        .call(cb);
 };
 
-Client.prototype.api.streamHomePage = function(streamCb, cb) {
+api.streamHomePage = function(streamCb, cb) {
 };
+
+Client.prototype.api = api;
 
 module.exports = Client;
