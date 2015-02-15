@@ -4,8 +4,6 @@ var webdriverio = require('webdriverio');
 var _ = require('lodash');
 
 var Client = function(options) {
-    var client = this;
-
     this.options = _.extend({
         username: false,
         password: false
@@ -25,41 +23,9 @@ var Client = function(options) {
     _.forOwn(addonCommands, function(handler, command) {
         api.addCommand(command, handler);
     });
-
-    // Store original window handle
-    client.windows = {};
-    api.windowHandle(function(err, res) {
-        if (err) { throw err; }
-        client.windows.main = res.value;
-    });
 };
 
 var api = {};
-
-api.switchTo = function(id, cb) {
-    var handle = this._client.windows[id];
-
-    if (! handle) {
-        this.newWindow('about:blank', '', '', function(err) {
-            if (err) { return cb(err); }
-
-            return this.windowHandle(function(err, res) {
-                if (err) { return cb(err); }
-
-                debug('New window opened - %s - %s', id, res.value);
-
-                this._client.windows[id] = res.value;
-                cb(null, res.value);
-            });
-        });
-    }
-    else {
-        this.window(handle)
-            .call(function() {
-                cb(null, handle);
-            });
-    }
-};
 
 api.login = function(cb) {
     var client = this._client;
@@ -68,8 +34,7 @@ api.login = function(cb) {
         return cb( new Error('Login requested, but no username/password provided') );
     }
 
-    this.switchTo('main')
-        .url(function(err, res) {
+    this.url(function(err, res) {
             if (err) {
                 return cb(err);
             }
@@ -118,8 +83,7 @@ api.login = function(cb) {
 };
 
 api.logout = function(cb) {
-    this.switchTo('main')
-        .url('https://twitter.com/logout')
+    this.url('https://twitter.com/logout')
         .click('.signout-wrapper button.primary-btn')
         .call(cb);
 };
@@ -129,8 +93,7 @@ api.setNewPassword = function(newPassword, cb) {
 
     debug('Changing password. Old: %s, New: %s', client.options.password, newPassword);
 
-    this.switchTo('main')
-        .url('https://twitter.com/settings/password')
+    this.url('https://twitter.com/settings/password')
         .title(function(err, res) {
             if (err) {
                 return cb(err);
@@ -198,8 +161,7 @@ api.goToProfile = function(profile, cb) {
 
     debug('Checking if we are already on profile page: %s', url);
 
-    this.switchTo('main')
-        .url(function(err, res) {
+    this.url(function(err, res) {
             if (err) {
                 return cb(err);
             }
@@ -212,16 +174,14 @@ api.goToProfile = function(profile, cb) {
 };
 
 api.editProfile = function(cb) {
-    this.switchTo('main')
-        .login()
+    this.login()
         .goToProfile()
         .click('[data-scribe-element="profile_edit_button"]')
         .call(cb);
 };
 
 api.saveProfile = function(cb) {
-    this.switchTo('main')
-        .click('.ProfilePage-saveButton')
+    this.click('.ProfilePage-saveButton')
         .getActionMessage(function(err, text) {
             if (err) { return cb(err); }
 
@@ -233,8 +193,7 @@ api.saveProfile = function(cb) {
 };
 
 api.getActionMessage = function(cb) {
-    this.switchTo('main')
-        .getText('.message-text', function(err, text) {
+    this.getText('.message-text', function(err, text) {
             if (err) { return cb(err); }
 
             if (text) {
@@ -254,8 +213,7 @@ api.getProfileInfo = function(cb) {
         url      : ''
     };
 
-    this.switchTo('main')
-        .goToProfile()
+    this.goToProfile()
         .getText('.ProfileHeaderCard-nameLink', function(err, text) {
             profile.name = text;
         })
@@ -275,8 +233,6 @@ api.getProfileInfo = function(cb) {
 
 api.setProfileInfo = function(profile, cb) {
     debug('Setting profile info: %j', profile);
-
-    this.switchTo('main');
 
     if (profile.name) {
         this.setValue('#user_name', profile.name);
@@ -304,8 +260,7 @@ api.postUpdate = function(update, cb) {
         };
     }
 
-    this.switchTo('main')
-        .login();
+    this.login();
 
     var selectorPrefix = '.timeline-tweet-box form';
 
@@ -355,8 +310,7 @@ api.postUpdate = function(update, cb) {
 };
 
 api.deleteTweet = function(id, cb) {
-    this.switchTo('main')
-        .goToStatus(id)
+    this.goToStatus(id)
         .click('[data-item-id="' + id + '"] .ProfileTweet-action--more .ProfileTweet-actionButton')
         .click('[data-item-id="' + id + '"] li.js-actionDelete button')
         .click('#delete-tweet-dialog .delete-action')
@@ -366,21 +320,18 @@ api.deleteTweet = function(id, cb) {
 api.goToStatus = function(id, cb) {
     var client = this._client;
 
-    this.switchTo('main')
-        .url('https://twitter.com/' + client.options.username + '/status/' + id)
+    this.url('https://twitter.com/' + client.options.username + '/status/' + id)
         .call(cb);
 };
 
 api.goToNotificationsSettings = function(cb) {
-    this.switchTo('main')
-        .login()
+    this.login()
         .url('https://twitter.com/settings/notifications')
         .call(cb);
 };
 
 api.turnOffEmailNotifications = function(cb) {
-    this.switchTo('main')
-        .goToNotificationsSettings()
+    this.goToNotificationsSettings()
         .isExisting('#notifications-global-off', function(err, res) {
             if (err) { cb(err); }
 
@@ -395,8 +346,7 @@ api.turnOffEmailNotifications = function(cb) {
 };
 
 api.turnOnEmailNotifications = function(cb) {
-    this.switchTo('main')
-        .goToNotificationsSettings()
+    this.goToNotificationsSettings()
         .isExisting('#notifications-global-on', function(err, res) {
             if (err) { cb(err); }
 
@@ -413,8 +363,7 @@ api.turnOnEmailNotifications = function(cb) {
 api.changeNotificationsSettings = function(settings, cb) {
     var api = this;
 
-    this.switchTo('main')
-        .goToNotificationsSettings();
+    this.goToNotificationsSettings();
 
     if (! _.isObject(settings)) {
         return cb(new Error('`settings` should be object with following possibble options: ' +
