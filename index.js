@@ -1,10 +1,11 @@
 /* eslint no-underscore-dangle: 0, handle-callback-err: 0 */
 var debug = require('debug')('twiser');
 var webdriverio = require('webdriverio');
-var browserevent = require('browserevent');
 var _ = require('lodash');
 
 var Client = function(options) {
+    var client = this;
+
     this.options = _.extend({
         username: false,
         password: false
@@ -20,14 +21,29 @@ var Client = function(options) {
     var api = this.api = webdriverio.remote(remoteOptions).init();
     this.api._client = this;
 
-    browserevent.init(this.api);
-
+    // Expose api methods as new webdriverio commands
     _.forOwn(addonCommands, function(handler, command) {
         api.addCommand(command, handler);
+    });
+
+    // Store original window handle
+    client.windows = {};
+    api.windowHandle(function(err, res) {
+        if (err) { throw err; }
+        client.windows.main = res.value;
     });
 };
 
 Client.prototype.api = {};
+
+Client.prototype.api.mainWindow = function(cb) {
+    var client = this._client;
+
+    debug('Switching to main window: %s', client.windows.main);
+
+    this.window(client.windows.main)
+        .call(cb);
+};
 
 Client.prototype.api.login = function(cb) {
     var client = this._client;
@@ -36,7 +52,8 @@ Client.prototype.api.login = function(cb) {
         return cb( new Error('Login requested, but no username/password provided') );
     }
 
-    this.url(function(err, res) {
+    this.mainWindow()
+        .url(function(err, res) {
             if (err) {
                 return cb(err);
             }
@@ -85,7 +102,8 @@ Client.prototype.api.login = function(cb) {
 };
 
 Client.prototype.api.logout = function(cb) {
-    this.url('https://twitter.com/logout')
+    this.mainWindow()
+        .url('https://twitter.com/logout')
         .click('.signout-wrapper button.primary-btn')
         .call(cb);
 };
@@ -95,7 +113,8 @@ Client.prototype.api.setNewPassword = function(newPassword, cb) {
 
     debug('Changing password. Old: %s, New: %s', client.options.password, newPassword);
 
-    this.url('https://twitter.com/settings/password')
+    this.mainWindow()
+        .url('https://twitter.com/settings/password')
         .title(function(err, res) {
             if (err) {
                 return cb(err);
@@ -163,7 +182,8 @@ Client.prototype.api.goToProfile = function(profile, cb) {
 
     debug('Checking if we are already on profile page: %s', url);
 
-    this.url(function(err, res) {
+    this.mainWindow()
+        .url(function(err, res) {
             if (err) {
                 return cb(err);
             }
@@ -176,14 +196,16 @@ Client.prototype.api.goToProfile = function(profile, cb) {
 };
 
 Client.prototype.api.editProfile = function(cb) {
-    this.login()
+    this.mainWindow()
+        .login()
         .goToProfile()
         .click('[data-scribe-element="profile_edit_button"]')
         .call(cb);
 };
 
 Client.prototype.api.saveProfile = function(cb) {
-    this.click('.ProfilePage-saveButton')
+    this.mainWindow()
+        .click('.ProfilePage-saveButton')
         .getActionMessage(function(err, text) {
             if (err) { return cb(err); }
 
@@ -195,16 +217,17 @@ Client.prototype.api.saveProfile = function(cb) {
 };
 
 Client.prototype.api.getActionMessage = function(cb) {
-    this.getText('.message-text', function(err, text) {
-        if (err) { return cb(err); }
+    this.mainWindow()
+        .getText('.message-text', function(err, text) {
+            if (err) { return cb(err); }
 
-        if (text) {
-            debug('Got message: %s', text);
-            return cb(null, text);
-        }
+            if (text) {
+                debug('Got message: %s', text);
+                return cb(null, text);
+            }
 
-        cb(null);
-    });
+            cb(null);
+        });
 };
 
 Client.prototype.api.getProfileInfo = function(cb) {
@@ -215,7 +238,8 @@ Client.prototype.api.getProfileInfo = function(cb) {
         url      : ''
     };
 
-    this.goToProfile()
+    this.mainWindow()
+        .goToProfile()
         .getText('.ProfileHeaderCard-nameLink', function(err, text) {
             profile.name = text;
         })
@@ -235,6 +259,8 @@ Client.prototype.api.getProfileInfo = function(cb) {
 
 Client.prototype.api.setProfileInfo = function(profile, cb) {
     debug('Setting profile info: %j', profile);
+
+    this.mainWindow();
 
     if (profile.name) {
         this.setValue('#user_name', profile.name);
@@ -262,7 +288,8 @@ Client.prototype.api.postUpdate = function(update, cb) {
         };
     }
 
-    this.login();
+    this.mainWindow()
+        .login();
 
     var selectorPrefix = '.timeline-tweet-box form';
 
@@ -312,7 +339,8 @@ Client.prototype.api.postUpdate = function(update, cb) {
 };
 
 Client.prototype.api.deleteTweet = function(id, cb) {
-    this.goToStatus(id)
+    this.mainWindow()
+        .goToStatus(id)
         .click('[data-item-id="' + id + '"] .ProfileTweet-action--more .ProfileTweet-actionButton')
         .click('[data-item-id="' + id + '"] li.js-actionDelete button')
         .click('#delete-tweet-dialog .delete-action')
@@ -322,18 +350,21 @@ Client.prototype.api.deleteTweet = function(id, cb) {
 Client.prototype.api.goToStatus = function(id, cb) {
     var client = this._client;
 
-    this.url('https://twitter.com/' + client.options.username + '/status/' + id)
+    this.mainWindow()
+        .url('https://twitter.com/' + client.options.username + '/status/' + id)
         .call(cb);
 };
 
 Client.prototype.api.goToNotificationsSettings = function(cb) {
-    this.login()
+    this.mainWindow()
+        .login()
         .url('https://twitter.com/settings/notifications')
         .call(cb);
 };
 
 Client.prototype.api.turnOffEmailNotifications = function(cb) {
-    this.goToNotificationsSettings()
+    this.mainWindow()
+        .goToNotificationsSettings()
         .isExisting('#notifications-global-off', function(err, res) {
             if (err) { cb(err); }
 
@@ -348,7 +379,8 @@ Client.prototype.api.turnOffEmailNotifications = function(cb) {
 };
 
 Client.prototype.api.turnOnEmailNotifications = function(cb) {
-    this.goToNotificationsSettings()
+    this.mainWindow()
+        .goToNotificationsSettings()
         .isExisting('#notifications-global-on', function(err, res) {
             if (err) { cb(err); }
 
@@ -365,7 +397,8 @@ Client.prototype.api.turnOnEmailNotifications = function(cb) {
 Client.prototype.api.changeNotificationsSettings = function(settings, cb) {
     var api = this;
 
-    api.goToNotificationsSettings();
+    this.mainWindow()
+        .goToNotificationsSettings();
 
     if (! _.isObject(settings)) {
         return cb(new Error('`settings` should be object with following possibble options: ' +
@@ -394,6 +427,9 @@ Client.prototype.api.changeNotificationsSettings = function(settings, cb) {
 
     api.click('#settings_save')
        .call(cb);
+};
+
+Client.prototype.api.streamHomePage = function(streamCb, cb) {
 };
 
 module.exports = Client;
