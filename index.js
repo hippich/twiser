@@ -1,7 +1,9 @@
-/* eslint no-underscore-dangle: 0, handle-callback-err: 0 */
+/* eslint no-underscore-dangle: 0, handle-callback-err: 0, camelcase: 0 */
 var debug = require('debug')('twiser');
 var webdriverio = require('webdriverio');
 var _ = require('lodash');
+
+var Tweet = require('./tweet');
 
 var Client = function(options) {
     this.options = _.extend({
@@ -394,7 +396,50 @@ api.changeNotificationsSettings = function(settings, cb) {
        .call(cb);
 };
 
-api.streamHomePage = function(streamCb, cb) {
+api.streamHomePage = function(control, options, cb) {
+    var scanInterval;
+    var seenIds = [];
+
+    this.login(); // this will end up on home page
+
+    this.call(function() {
+        options = _.extend({
+            timeout : 1000,
+            cb      : function(tweet) { console.log('Tweet: %j', tweet); }
+        }, options);
+
+        scanInterval = setInterval(function() {
+            this.isExisting('.new-tweets-bar', function(err, res) {
+                if (!err && res) {
+                    return this.click('.new-tweets-bar');
+                }
+            });
+
+            this.getHTML('.stream .stream-items .stream-item .tweet', function(err, res) {
+                if (err) { return cb(err); }
+
+                if (! _.isArray(res)) {
+                    res = [res];
+                }
+
+                res.forEach(function(item) {
+                    var tweet = new Tweet(item);
+
+                    if (seenIds.indexOf(tweet.id) > -1) {
+                        return;
+                    }
+
+                    seenIds.push( tweet.id );
+                    options.cb.call(this, tweet);
+                }.bind(this));
+            });
+        }.bind(this), options.timeout);
+    });
+
+    control.endStreaming = function() {
+        clearInterval(scanInterval);
+        cb(null);
+    };
 };
 
 Client.prototype.api = api;

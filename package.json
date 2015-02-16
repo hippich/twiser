@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/hippich/twiser",
   "dependencies": {
-    "browserevent": "^0.2.0",
+    "cheerio": "^0.18.0",
     "debug": "^2.1.1",
     "lodash": "^3.1.0",
     "webdriverio": "^2.4.5"

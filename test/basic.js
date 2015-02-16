@@ -11,6 +11,14 @@ var api = client.api;
 
 var origProfile, testTweetId, testReplyId;
 
+var control = {};
+var stream = api.streamHomePage(control, {});
+
+setTimeout(function() {
+    control.endStreaming();
+}, 25000);
+
+/*
 api
    .changeNotificationsSettings({ send_favorited_email: false })
    .changeNotificationsSettings({ send_favorited_email: true })
@@ -55,3 +63,4 @@ api
    .logout()
    .setNewPassword(process.env.TWITTER_PASSWORD)
 ;
+*/
