@@ -2,6 +2,10 @@
 var Client = require('../index');
 var path = require('path');
 
+if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD) {
+    throw new Error('TWITTER_USERNAME and TWITTER_PASSWORD env variables are required.');
+}
+
 var client = new Client({
     username: process.env.TWITTER_USERNAME,
     password: process.env.TWITTER_PASSWORD
@@ -11,16 +15,6 @@ var api = client.api;
 
 var origProfile, testTweetId, testReplyId;
 
-var control = {};
-
-api.url('https://twitter.com/search?f=realtime&q=js&src=typd')
-   .call(function() { client.stream(); });
-
-setTimeout(function() {
-    client.stopStream();
-}, 30000);
-
-/*
 api
    .changeNotificationsSettings({ send_favorited_email: false })
    .changeNotificationsSettings({ send_favorited_email: true })
@@ -65,4 +59,3 @@ api
    .logout()
    .setNewPassword(process.env.TWITTER_PASSWORD)
 ;
-*/

@@ -1,0 +1,32 @@
+/* eslint no-space-before-semi:0, camelcase: 0 */
+var Client = require('../index');
+
+if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD) {
+    throw new Error('TWITTER_USERNAME and TWITTER_PASSWORD env variables are required.');
+}
+
+var client = new Client({
+    username: process.env.TWITTER_USERNAME,
+    password: process.env.TWITTER_PASSWORD
+});
+
+client.api.url('https://twitter.com/search?f=realtime&q=js&src=typd')
+          .call(function() { client.stream(); });
+
+setTimeout(function() {
+    client.pauseStream();
+    console.log('paused');
+    client.api.login();
+    client.api.logout();
+}, 40000);
+
+setTimeout(function() {
+    client.resumeStream();
+    console.log('resumed');
+}, 60000);
+
+setTimeout(function() {
+    client.stopStream();
+    client.api.shutdown();
+    console.log('stopped');
+}, 120000);

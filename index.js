@@ -416,6 +416,8 @@ Client.prototype.stream = function(options) {
     this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.streaming.options.timeout);
 };
 
+Client.prototype.api = api;
+
 Client.prototype.streamCycle = function() {
     var client = this;
     var api = this.api;
@@ -445,29 +447,29 @@ Client.prototype.streamCycle = function() {
 };
 
 Client.prototype.pauseStream = function() {
-    var client = this;
     this.streaming.status = 'paused';
-    client.streaming.streamInterval = clearInterval(client.streaming.streamInterval);
-    client.api.open('about:blank', 'temp');
+    this.streaming.streamInterval = clearInterval(this.streaming.streamInterval);
+    this.api.newWindow('about:blank', 'temp');
 };
 
 Client.prototype.resumeStream = function() {
-    this.api.close();
     this.streaming.status = 'running';
-    this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.options.timeout);
+    this.api
+        .window()
+        .switchTab()
+        .call(function() {
+            this.streamCycle();
+            this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.streaming.options.timeout);
+        }.bind(this));
 };
 
 Client.prototype.stopStream = function() {
-    if (this.streaming.status !== 'stopped') {
-        this.api.close();
-    }
+    this.streaming.status = 'stopped';
+    this.streaming.seenTweetIds = [];
 
     if (this.streaming.streamInterval) {
         this.streaming.streamInterval = clearInterval(this.streaming.streamInterval);
-        this.streaming.seenTweetIds = [];
     }
 };
-
-Client.prototype.api = api;
 
 module.exports = Client;
