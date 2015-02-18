@@ -12,11 +12,13 @@ var api = client.api;
 var origProfile, testTweetId, testReplyId;
 
 var control = {};
-var stream = api.streamHomePage(control, {});
+
+api.url('https://twitter.com/search?f=realtime&q=js&src=typd')
+   .call(function() { client.stream(); });
 
 setTimeout(function() {
-    control.endStreaming();
-}, 25000);
+    client.stopStream();
+}, 30000);
 
 /*
 api

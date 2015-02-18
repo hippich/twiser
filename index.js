@@ -11,6 +11,12 @@ var Client = function(options) {
         password: false
     }, options);
 
+    this.streaming = {
+        streamInterval : null,
+        seenTweetIds   : [],
+        status         : 'stopped'
+    };
+
     var remoteOptions = _.extend({
         desiredCapabilities: {
             browser: 'chrome'
@@ -396,50 +402,70 @@ api.changeNotificationsSettings = function(settings, cb) {
        .call(cb);
 };
 
-api.streamHomePage = function(control, options, cb) {
-    var scanInterval;
-    var seenIds = [];
+Client.prototype.stream = function(options) {
+    this.stopStream();
 
-    this.login(); // this will end up on home page
+    this.streaming.options = _.extend({
+        timeout : 15000,
+        cb      : function(tweet) { console.log('Tweet: %j', tweet); }
+    }, options);
 
-    this.call(function() {
-        options = _.extend({
-            timeout : 1000,
-            cb      : function(tweet) { console.log('Tweet: %j', tweet); }
-        }, options);
+    this.streaming.status = 'running';
 
-        scanInterval = setInterval(function() {
-            this.isExisting('.new-tweets-bar', function(err, res) {
-                if (!err && res) {
-                    return this.click('.new-tweets-bar');
-                }
-            });
+    this.streamCycle();
+    this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.streaming.options.timeout);
+};
 
-            this.getHTML('.stream .stream-items .stream-item .tweet', function(err, res) {
-                if (err) { return cb(err); }
+Client.prototype.streamCycle = function() {
+    var client = this;
+    var api = this.api;
 
-                if (! _.isArray(res)) {
-                    res = [res];
-                }
-
-                res.forEach(function(item) {
-                    var tweet = new Tweet(item);
-
-                    if (seenIds.indexOf(tweet.id) > -1) {
-                        return;
-                    }
-
-                    seenIds.push( tweet.id );
-                    options.cb.call(this, tweet);
-                }.bind(this));
-            });
-        }.bind(this), options.timeout);
+    api.isExisting('.new-tweets-bar', function(err, res) {
+        if (!err && res) {
+            return api.click('.new-tweets-bar');
+        }
     });
 
-    control.endStreaming = function() {
-        clearInterval(scanInterval);
-        cb(null);
-    };
+    api.getHTML('.stream .stream-items .stream-item .tweet', function(err, res) {
+        if (! _.isArray(res)) {
+            res = [res];
+        }
+
+        res.forEach(function(item) {
+            var tweet = new Tweet(item);
+
+            if (client.streaming.seenTweetIds.indexOf(tweet.id) > -1) {
+                return;
+            }
+
+            client.streaming.seenTweetIds.push( tweet.id );
+            client.streaming.options.cb.call(this, tweet);
+        }.bind(this));
+    });
+};
+
+Client.prototype.pauseStream = function() {
+    var client = this;
+    this.streaming.status = 'paused';
+    client.streaming.streamInterval = clearInterval(client.streaming.streamInterval);
+    client.api.open('about:blank', 'temp');
+};
+
+Client.prototype.resumeStream = function() {
+    this.api.close();
+    this.streaming.status = 'running';
+    this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.options.timeout);
+};
+
+Client.prototype.stopStream = function() {
+    if (this.streaming.status !== 'stopped') {
+        this.api.close();
+    }
+
+    if (this.streaming.streamInterval) {
+        this.streaming.streamInterval = clearInterval(this.streaming.streamInterval);
+        this.streaming.seenTweetIds = [];
+    }
 };
 
 Client.prototype.api = api;
