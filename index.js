@@ -402,6 +402,8 @@ api.changeNotificationsSettings = function(settings, cb) {
        .call(cb);
 };
 
+Client.prototype.api = api;
+
 Client.prototype.stream = function(options) {
     this.stopStream();
 
@@ -415,8 +417,6 @@ Client.prototype.stream = function(options) {
     this.streamCycle();
     this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.streaming.options.timeout);
 };
-
-Client.prototype.api = api;
 
 Client.prototype.streamCycle = function() {
     var client = this;
@@ -433,7 +433,7 @@ Client.prototype.streamCycle = function() {
             res = [res];
         }
 
-        res.forEach(function(item) {
+        res.reverse().forEach(function(item) {
             var tweet = new Tweet(item);
 
             if (client.streaming.seenTweetIds.indexOf(tweet.id) > -1) {
