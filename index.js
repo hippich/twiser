@@ -5,10 +5,35 @@ var _ = require('lodash');
 
 var Tweet = require('./tweet');
 
+//
+// **Client class**
+//
+// Sample usage:
+//
+//        var Client = require('twiser');
+//
+//        var client = new Client({
+//          username: 'joe',
+//          password: 'passx123'
+//        });
+//
+//        client.api.login()
+//                  .setNewPassword('qwe123qwe')
+//                  .url('https://twitter.com/search?f=realtime&q=football&src=typd');
+//
+//        client.stream(function(tweet) {
+//          console.log(tweet.text);
+//        });
+//
 var Client = function(options) {
     this.options = _.extend({
         username: false,
-        password: false
+        password: false,
+        remoteOptions: {
+            desiredCapabilities: {
+                browser: 'chrome'
+            }
+        }
     }, options);
 
     this.streaming = {
@@ -27,7 +52,6 @@ var Client = function(options) {
     var api = this.api = webdriverio.remote(remoteOptions).init();
     this.api._client = this;
 
-    // Expose api methods as new webdriverio commands
     _.forOwn(addonCommands, function(handler, command) {
         api.addCommand(command, handler);
     });
@@ -35,6 +59,9 @@ var Client = function(options) {
 
 var api = {};
 
+// **Login using username/password**
+//
+// Open /login page and try to login with supplied username/password
 api.login = function(cb) {
     var client = this._client;
 
@@ -90,12 +117,22 @@ api.login = function(cb) {
         });
 };
 
+// **Logout**
 api.logout = function(cb) {
     this.url('https://twitter.com/logout')
         .click('.signout-wrapper button.primary-btn')
         .call(cb);
 };
 
+// **Change account password**
+//
+// Login, open password settings page, fill form to change password and press submit.
+// It will automaticaly update current client's password to new one.
+//
+// Pass new password:
+//
+//     client.api.setNewPassword('asd123asd');
+//
 api.setNewPassword = function(newPassword, cb) {
     var client = this._client;
 
@@ -146,11 +183,18 @@ api.setNewPassword = function(newPassword, cb) {
         });
 };
 
+// **Shutdown**
+//
+// Call to close all browser windows. Do it before exit, as browsers will not be closed automaticaly.
 api.shutdown = function(cb) {
     this.end();
     cb(null);
 };
 
+// **Open profile page**
+//
+// Using supplied `profile` parameter, open profile page for this user. If `profile` is not specified,
+// opens own profile page.
 api.goToProfile = function(profile, cb) {
     var client = this._client;
 
@@ -181,6 +225,9 @@ api.goToProfile = function(profile, cb) {
         .call(cb);
 };
 
+// **Edit profile**
+//
+// Logs in, open profile page and click `Edit` button. Used to begin changes in profile info.
 api.editProfile = function(cb) {
     this.login()
         .goToProfile()
@@ -188,6 +235,9 @@ api.editProfile = function(cb) {
         .call(cb);
 };
 
+// **Save profile**
+//
+// Clicks Save button. This usually called once you are done changing profile.
 api.saveProfile = function(cb) {
     this.click('.ProfilePage-saveButton')
         .getActionMessage(function(err, text) {
@@ -200,6 +250,9 @@ api.saveProfile = function(cb) {
         .call(cb);
 };
 
+// **Get action message**
+//
+// If some action produce message, you can use this action to retrieve it.
 api.getActionMessage = function(cb) {
     this.getText('.message-text', function(err, text) {
             if (err) { return cb(err); }
@@ -213,6 +266,23 @@ api.getActionMessage = function(cb) {
         });
 };
 
+// **Get profile info**
+//
+// Return object with profile information:
+//
+//     "profile": {
+//       "name": "John Doe",
+//       "bio": "Bio line from profile",
+//       "location": "London, UK",
+//       "url": "https://google.com/"
+//     }
+//
+// Sample usage:
+//
+//     client.api.getProfileInfo(function(err, info) {
+//       console.log(info.name);
+//     });
+//
 api.getProfileInfo = function(cb) {
     var profile = {
         name     : '',
@@ -239,6 +309,32 @@ api.getProfileInfo = function(cb) {
         });
 };
 
+// **Set profile info**
+//
+// Set information on user profile. Pass following object as a first parameter:
+//
+//     "profile": {
+//       "name": "James Bond",
+//       "bio": "Agent 007",
+//       "location": "Paris, FR",
+//       "url": ""
+//     }
+//
+// Make sure to be on a profile page, and click 'Edit' button first.
+//
+// Sample usage:
+//
+//     client.api.login()
+//     client.api.goToProfile()
+//     client.api.editProfile()
+//     client.api.setProfileInfo({
+//       "name": "James Bond",
+//       "bio": "Agent 007",
+//       "location": "Paris, FR",
+//       "url": ""
+//     });
+//     client.api.saveProfile()
+//
 api.setProfileInfo = function(profile, cb) {
     debug('Setting profile info: %j', profile);
 
@@ -261,6 +357,16 @@ api.setProfileInfo = function(profile, cb) {
     this.call(cb);
 };
 
+// **Post Update**
+//
+// Post tweet. Supply following object:
+//
+//      client.api.postUpdate({
+//        "post": "Hello, this is my #twitter post",
+//        "inreply": "2532523523523523", // Optional tweet_id of the post to reply to
+//        "image": "/home/joe/images/cat.jpg" // Optional path to the image to include in the tweet
+//      });
+//
 api.postUpdate = function(update, cb) {
     if (_.isString(update)) {
         update = {
@@ -274,9 +380,6 @@ api.postUpdate = function(update, cb) {
 
     if (update.inreply) {
         selectorPrefix = '.inline-reply-tweetbox';
-    }
-
-    if (update.inreply) {
         this.goToStatus(update.inreply);
     }
 
@@ -317,6 +420,10 @@ api.postUpdate = function(update, cb) {
         });
 };
 
+// **Delete tweet**
+//
+// Pass `id` to delete tweet with `tweet_id` == `id`
+//
 api.deleteTweet = function(id, cb) {
     this.goToStatus(id)
         .click('[data-item-id="' + id + '"] .ProfileTweet-action--more .ProfileTweet-actionButton')
@@ -325,6 +432,9 @@ api.deleteTweet = function(id, cb) {
         .call(cb);
 };
 
+// **Go to status**
+//
+// Opens specific tweet page
 api.goToStatus = function(id, cb) {
     var client = this._client;
 
@@ -332,12 +442,20 @@ api.goToStatus = function(id, cb) {
         .call(cb);
 };
 
+// **Go to notification settings**
+//
+// Opens /settings/notifications page
+//
 api.goToNotificationsSettings = function(cb) {
     this.login()
         .url('https://twitter.com/settings/notifications')
         .call(cb);
 };
 
+// **Turn off email notifications**
+//
+// Allows you to turn off all email communication from twitter for this account
+//
 api.turnOffEmailNotifications = function(cb) {
     this.goToNotificationsSettings()
         .isExisting('#notifications-global-off', function(err, res) {
@@ -353,6 +471,10 @@ api.turnOffEmailNotifications = function(cb) {
         .call(cb);
 };
 
+// **Turn on email notifications**
+//
+// Allows you to turn on enabled email communication for this twitter account.
+//
 api.turnOnEmailNotifications = function(cb) {
     this.goToNotificationsSettings()
         .isExisting('#notifications-global-on', function(err, res) {
@@ -368,6 +490,41 @@ api.turnOnEmailNotifications = function(cb) {
         .call(cb);
 };
 
+// **Change notification settings**
+//
+// Allows to turn on/off individual emails
+//
+// Following types are available:
+//
+// * send_favorited_email
+// * send_favorited_mention_email
+// * send_retweeted_email
+// * send_retweeted_mention_email
+// * send_mention_email
+// * send_new_friend_email
+// * send_new_direct_text_email
+// * send_shared_tweet_e
+// * mailsend_address_book_notification_email
+// * send_favorited_retweet_email
+// * send_retweeted_retweet_email
+// * network_digest_schedule
+// * send_network_activity_email
+// * performance_digest_schedulesend_magic_recs_e
+// * mail' +
+// * send_email_newsletter
+// * send_activation_email
+// * send_resurrection_email_1
+// * send_partner_email
+// * send_survey_emailsend_follow_recs_email
+// * send_similar_people_email
+//
+// Example:
+//
+//      client.api.changeNotificationsSettings({
+//        send_favorited_email: true, // Turn on 'Favorited' emails
+//        sent_retweeted_email: false // Turn off 'Retweeted' emails
+//      });
+//
 api.changeNotificationsSettings = function(settings, cb) {
     var api = this;
 
@@ -404,6 +561,45 @@ api.changeNotificationsSettings = function(settings, cb) {
 
 Client.prototype.api = api;
 
+// **Streaming**
+//
+// This method allows to stream tweets in realtime while on `streamable` pages.
+// `Streamable` pages include: logged in home page, Discover page and Search results page.
+//
+// You need first to open `streamable` page and then call `client.stream(opts);`. Notice,
+// that this is not `.api` method, but rather `client` method.
+//
+// Following options are available:
+//
+//       client.api.url('https://twitter.com/search?f=realtime&q=js&src=typd');
+//       client.stream({
+//         timeout: 10000, // Optional, interval in ms between check for new tweets. Default: 15000 (15 seconds)
+//                         // There is no reason to make it too small, as new tweets appear about once every 30 seconds.
+//         cb: function(tweet) { // This callback will be called with new tweet
+//           console.log(tweet.user.id);
+//         }
+//       });
+//
+// Here is example of tweet object:
+//
+//         {
+//             "id_str": "567646576014008320",
+//             "id": "567646576014008320",
+//             "created_at": "2015-02-17T11:27:44.000Z",
+//             "text": "Java vs. Node.js: An epic battle for developer mind share http://ift.tt/1Az9Z4l  ===== http://androidanalytic.com ",
+//             "html": "Java vs. Node.<strong>js</strong>: An epic battle for developer mind share <a href=\"http://t.co/6eLpH0178e\" rel=\"nofollow\" dir=\"ltr\" data-expanded-url=\"http://ift.tt/1Az9Z4l\" class=\"twitter-timeline-link\" target=\"_blank\" title=\"http://ift.tt/1Az9Z4l\"><span class=\"tco-ellipsis\"></span><span class=\"invisible\">http://</span><span class=\"js-display-url\">ift.tt/1Az9Z4l</span><span class=\"invisible\"></span><span class=\"tco-ellipsis\"><span class=\"invisible\">&#xA0;</span></span></a> ===== <a href=\"http://t.co/tOpip4QwzM\" rel=\"nofollow\" dir=\"ltr\" data-expanded-url=\"http://androidanalytic.com\" class=\"twitter-timeline-link\" target=\"_blank\" title=\"http://androidanalytic.com\"><span class=\"tco-ellipsis\"></span><span class=\"invisible\">http://</span><span class=\"js-display-url\">androidanalytic.com</span><span class=\"invisible\"></span><span class=\"tco-ellipsis\"><span class=\"invisible\">&#xA0;</span></span></a>",
+//             "retweeted": false,
+//             "is_reply": false,
+//             "user_mentions": [""],
+//             "user": {
+//                 "id_str": "2780229181",
+//                 "id": "2780229181",
+//                 "name": "Android Analytics",
+//                 "screen_name": "AndroidAnalytic",
+//                 "lang": "en"
+//             }
+//         }
+//
 Client.prototype.stream = function(options) {
     this.stopStream();
 
@@ -418,6 +614,7 @@ Client.prototype.stream = function(options) {
     this.streaming.streamInterval = setInterval(this.streamCycle.bind(this), this.streaming.options.timeout);
 };
 
+// This method get called to check for new tweets
 Client.prototype.streamCycle = function() {
     var client = this;
     var api = this.api;
@@ -446,12 +643,20 @@ Client.prototype.streamCycle = function() {
     });
 };
 
+// **Pause streaming**
+//
+// If you need to react on tweet, update account or do something else, you need to pause streaming.
+// Calling `.pauseStream` will open new window to keep streaming page intact.
 Client.prototype.pauseStream = function() {
     this.streaming.status = 'paused';
     this.streaming.streamInterval = clearInterval(this.streaming.streamInterval);
     this.api.newWindow('about:blank', 'temp');
 };
 
+// **Resume streaming**
+//
+// Once you are ready to continue streaming (finished replying to a tweet for example), call `.resumeStream()`.
+// This will close popup and return back to streaming page, and re-start streaming.
 Client.prototype.resumeStream = function() {
     this.streaming.status = 'running';
     this.api
@@ -463,6 +668,10 @@ Client.prototype.resumeStream = function() {
         }.bind(this));
 };
 
+// **Stop streaming**
+//
+// This will stop streaming AND reset array of seen tweet ids. Next time you start streaming from the same page,
+// you might see duplicate tweets.
 Client.prototype.stopStream = function() {
     this.streaming.status = 'stopped';
     this.streaming.seenTweetIds = [];

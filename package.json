@@ -4,7 +4,8 @@
   "description": "Twitter API via Chrome Browser",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "docs": "./node_modules/.bin/docco index.js"
   },
   "repository": {
     "type": "git",
@@ -25,5 +26,8 @@
     "debug": "^2.1.1",
     "lodash": "^3.1.0",
     "webdriverio": "^2.4.5"
+  },
+  "devDependencies": {
+    "docco": "^0.7.0"
   }
 }
