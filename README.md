@@ -4,6 +4,14 @@ Twiser - Twitter API via Selenium
 This library provides access to twitter (post/stream/update account/etc) functionality via real browser
 driven by Selenium Webdriver. API built on top of <a href="http://webdriver.io/">WebdriverIO</a> library.
 
+### Installation
+
+       npm install twiser --save
+
+### Documentation
+
+<a href="http://hippich.github.io/twiser/docs/index.html">Annotated source code</a>
+
 ### Sample usage:
 
        var Client = require('twiser');
