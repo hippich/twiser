@@ -1,6 +1,7 @@
-/* eslint no-space-before-semi:0, camelcase: 0 */
+/* eslint no-space-before-semi:0, camelcase: 0, no-process-exit:0 */
 var Client = require('../index');
 var path = require('path');
+var fs = require('fs');
 
 if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD) {
     throw new Error('TWITTER_USERNAME and TWITTER_PASSWORD env variables are required.');
@@ -59,3 +60,19 @@ api
    .logout()
    .setNewPassword(process.env.TWITTER_PASSWORD)
 ;
+
+process.on('uncaughtException', function (err) {
+    console.log(err);
+
+    client.api.saveScreenshot('./exception.png')
+              .source('body', function(err, res) {
+                  if (err) {
+                      console.log(err);
+                  }
+
+                  fs.writeFileSync('./exception.html', res.value);
+              })
+              .call(function() {
+                  process.exit(1);
+              });
+});
