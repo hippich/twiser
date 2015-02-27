@@ -559,6 +559,52 @@ api.changeNotificationsSettings = function(settings, cb) {
        .call(cb);
 };
 
+// **Follow/Unfollow**
+//
+// Specify action `follow` or `unfollow` to follow/unfollow user specified by user_id.
+// `user_id` can be both screen_name or twitter user_id.
+//
+api.followAction = function(action, user_id, cb) {
+    var url;
+
+    if (_.isNumber(user_id) || (_.isString(user_id) && user_id.match(/^\d+$/))) {
+        url = 'https://twitter.com/intent/user?user_id=' + user_id;
+    }
+    else {
+        url = 'https://twitter.com/intent/user?screen_name=' + user_id;
+    }
+
+    this.url(url)
+        .isVisible('form.' + action, function(err, visible) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (visible) {
+                return this.click('form.' + action + ' button');
+            }
+        })
+        .call(cb);
+};
+
+// **Follow**
+//
+// Follows user specified by user_id. `user_id` can be either numeric user_id, or screen_name
+//
+api.follow = function(user_id, cb) {
+    this.followAction('follow', user_id)
+        .call(cb);
+};
+
+// **Unfollow**
+//
+// Unfollows user specified by user_id. `user_id` can be either numeric user_id, or screen_name
+//
+api.unfollow = function(user_id, cb) {
+    this.followAction('unfollow', user_id)
+        .call(cb);
+};
+
 Client.prototype.api = api;
 
 // **Streaming**

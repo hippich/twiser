@@ -764,9 +764,7 @@ client.api.saveProfile()
 
     api.click(<span class="hljs-string">'#settings_save'</span>)
        .call(cb);
-};
-
-Client.prototype.api = api;</pre></div></div>
+};</pre></div></div>
             
         </li>
         
@@ -776,6 +774,84 @@ Client.prototype.api = api;</pre></div></div>
               
               <div class="pilwrap ">
                 <a class="pilcrow" href="#section-20">&#182;</a>
+              </div>
+              <p><strong>Follow/Unfollow</strong></p>
+<p>Specify action <code>follow</code> or <code>unfollow</code> to follow/unfollow user specified by user_id.
+<code>user_id</code> can be both screen_name or twitter user_id.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>api.followAction = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(action, user_id, cb)</span> </span>{
+    <span class="hljs-keyword">var</span> url;
+
+    <span class="hljs-keyword">if</span> (_.isNumber(user_id) || (_.isString(user_id) &amp;&amp; user_id.match(<span class="hljs-regexp">/^\d+$/</span>))) {
+        url = <span class="hljs-string">'https://twitter.com/intent/user?user_id='</span> + user_id;
+    }
+    <span class="hljs-keyword">else</span> {
+        url = <span class="hljs-string">'https://twitter.com/intent/user?screen_name='</span> + user_id;
+    }
+
+    <span class="hljs-keyword">this</span>.url(url)
+        .isVisible(<span class="hljs-string">'form.'</span> + action, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(err, visible)</span> </span>{
+            <span class="hljs-keyword">if</span> (err) {
+                <span class="hljs-keyword">return</span> cb(err);
+            }
+
+            <span class="hljs-keyword">if</span> (visible) {
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.click(<span class="hljs-string">'form.'</span> + action + <span class="hljs-string">' button'</span>);
+            }
+        })
+        .call(cb);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-21">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-21">&#182;</a>
+              </div>
+              <p><strong>Follow</strong></p>
+<p>Follows user specified by user_id. <code>user_id</code> can be either numeric user_id, or screen_name</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>api.follow = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(user_id, cb)</span> </span>{
+    <span class="hljs-keyword">this</span>.followAction(<span class="hljs-string">'follow'</span>, user_id)
+        .call(cb);
+};</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-22">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-22">&#182;</a>
+              </div>
+              <p><strong>Unfollow</strong></p>
+<p>Unfollows user specified by user_id. <code>user_id</code> can be either numeric user_id, or screen_name</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>api.unfollow = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(user_id, cb)</span> </span>{
+    <span class="hljs-keyword">this</span>.followAction(<span class="hljs-string">'unfollow'</span>, user_id)
+        .call(cb);
+};
+
+Client.prototype.api = api;</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-23">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-23">&#182;</a>
               </div>
               <p><strong>Streaming</strong></p>
 <p>This method allows to stream tweets in realtime while on <code>streamable</code> pages.
@@ -829,11 +905,11 @@ that this is not <code>.api</code> method, but rather <code>client</code> method
         </li>
         
         
-        <li id="section-21">
+        <li id="section-24">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-21">&#182;</a>
+                <a class="pilcrow" href="#section-24">&#182;</a>
               </div>
               <p>This method get called to check for new tweets</p>
 
@@ -870,11 +946,11 @@ that this is not <code>.api</code> method, but rather <code>client</code> method
         </li>
         
         
-        <li id="section-22">
+        <li id="section-25">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-22">&#182;</a>
+                <a class="pilcrow" href="#section-25">&#182;</a>
               </div>
               <p><strong>Pause streaming</strong></p>
 <p>If you need to react on tweet, update account or do something else, you need to pause streaming.
@@ -891,11 +967,11 @@ Calling <code>.pauseStream</code> will open new window to keep streaming page in
         </li>
         
         
-        <li id="section-23">
+        <li id="section-26">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-23">&#182;</a>
+                <a class="pilcrow" href="#section-26">&#182;</a>
               </div>
               <p><strong>Resume streaming</strong></p>
 <p>Once you are ready to continue streaming (finished replying to a tweet for example), call <code>.resumeStream()</code>.
@@ -917,11 +993,11 @@ This will close popup and return back to streaming page, and re-start streaming.
         </li>
         
         
-        <li id="section-24">
+        <li id="section-27">
             <div class="annotation">
               
               <div class="pilwrap ">
-                <a class="pilcrow" href="#section-24">&#182;</a>
+                <a class="pilcrow" href="#section-27">&#182;</a>
               </div>
               <p><strong>Stop streaming</strong></p>
 <p>This will stop streaming AND reset array of seen tweet ids. Next time you start streaming from the same page,
