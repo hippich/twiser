@@ -14,7 +14,13 @@ var Tweet = require('./tweet');
 //
 //        var client = new Client({
 //          username: 'joe',
-//          password: 'passx123'
+//          password: 'passx123',
+//          remoteOptions: { // webdriverio remote options - http://webdriver.io/guide.html
+//            host: '192.168.155.101',
+//            desiredCapabilities: {
+//                browser: 'firefox'
+//            }
+//          }
 //        });
 //
 //        client.api.login()
@@ -29,10 +35,8 @@ var Client = function(options) {
     this.options = _.extend({
         username: false,
         password: false,
+        readyCb: function() {},
         remoteOptions: {
-            desiredCapabilities: {
-                browser: 'chrome'
-            }
         }
     }, options);
 
@@ -44,12 +48,12 @@ var Client = function(options) {
 
     var remoteOptions = _.extend({
         desiredCapabilities: {
-            browser: 'chrome'
+            browser: 'firefox'
         }
     }, this.options.remoteOptions);
 
     var addonCommands = this.api;
-    var api = this.api = webdriverio.remote(remoteOptions).init();
+    var api = this.api = webdriverio.remote(remoteOptions).init(this.options.readyCb);
     this.api._client = this;
 
     _.forOwn(addonCommands, function(handler, command) {

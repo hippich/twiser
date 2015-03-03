@@ -52,7 +52,13 @@
 
    <span class="hljs-keyword">var</span> client = <span class="hljs-keyword">new</span> Client({
      username: <span class="hljs-string">'joe'</span>,
-     password: <span class="hljs-string">'passx123'</span>
+     password: <span class="hljs-string">'passx123'</span>,
+     remoteOptions: { <span class="hljs-comment">// webdriverio remote options - http://webdriver.io/guide.html</span>
+       host: <span class="hljs-string">'192.168.155.101'</span>,
+       desiredCapabilities: {
+           browser: <span class="hljs-string">'firefox'</span>
+       }
+     }
    });
 
    client.api.login()
@@ -69,10 +75,8 @@
     <span class="hljs-keyword">this</span>.options = _.extend({
         username: <span class="hljs-literal">false</span>,
         password: <span class="hljs-literal">false</span>,
+        readyCb: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{},
         remoteOptions: {
-            desiredCapabilities: {
-                browser: <span class="hljs-string">'chrome'</span>
-            }
         }
     }, options);
 
@@ -84,12 +88,12 @@
 
     <span class="hljs-keyword">var</span> remoteOptions = _.extend({
         desiredCapabilities: {
-            browser: <span class="hljs-string">'chrome'</span>
+            browser: <span class="hljs-string">'firefox'</span>
         }
     }, <span class="hljs-keyword">this</span>.options.remoteOptions);
 
     <span class="hljs-keyword">var</span> addonCommands = <span class="hljs-keyword">this</span>.api;
-    <span class="hljs-keyword">var</span> api = <span class="hljs-keyword">this</span>.api = webdriverio.remote(remoteOptions).init();
+    <span class="hljs-keyword">var</span> api = <span class="hljs-keyword">this</span>.api = webdriverio.remote(remoteOptions).init(<span class="hljs-keyword">this</span>.options.readyCb);
     <span class="hljs-keyword">this</span>.api._client = <span class="hljs-keyword">this</span>;
 
     _.forOwn(addonCommands, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(handler, command)</span> </span>{
