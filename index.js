@@ -607,6 +607,47 @@ api.unfollow = function(user_id, cb) {
         .call(cb);
 };
 
+// **getTweets**
+//
+// Fetches all tweets from current page
+api.getTweets = function(cb) {
+    this.isExisting('.new-tweets-bar', function(err, res) {
+        if (err) {
+            return cb(err);
+        }
+
+        if (!err && res) {
+            return this.click('.new-tweets-bar');
+        }
+    });
+
+    this.getHTML('.stream .stream-items .stream-item .tweet', function(err, res) {
+        if (err) {
+            return cb(err);
+        }
+
+        if (! _.isArray(res)) {
+            res = [res];
+        }
+
+        return cb(null, res);
+    });
+};
+
+// **Utility methods**
+//
+api.newWindowWithId = function(url, id, options, cb) {
+    this.newWindow(url, id, options, function(err) {
+        if (err) {
+            return cb(err);
+        }
+
+        this.windowHandle(function(err, res) {
+            return cb(err, res);
+        });
+    });
+};
+
 Client.prototype.api = api;
 
 module.exports = Client;
