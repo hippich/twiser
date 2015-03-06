@@ -17,6 +17,14 @@ var api = client.api;
 var origProfile, testTweetId, testReplyId;
 
 api
+   .url('https://twitter.com/search?f=realtime&q=js&src=typd')
+   .getTweets(function(err, tweets) {
+       if (err) {
+           throw err;
+       }
+
+       console.log('Got ' + tweets.length + ' tweets.');
+   })
    .changeNotificationsSettings({ send_favorited_email: false })
    .changeNotificationsSettings({ send_favorited_email: true })
    .turnOffEmailNotifications()
