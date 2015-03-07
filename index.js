@@ -33,25 +33,27 @@ var Client = function(options) {
     this.options = _.extend({
         username: false,
         password: false,
-        readyCb: function() {},
         remoteOptions: {
         }
     }, options);
 
-    this.streaming = {
-        streamInterval : null,
-        seenTweetIds   : [],
-        status         : 'stopped'
-    };
-
     var remoteOptions = _.extend({
         desiredCapabilities: {
-            browser: 'firefox'
+            browserName: 'chrome'
         }
     }, this.options.remoteOptions);
 
     var addonCommands = this.api;
-    var api = this.api = webdriverio.remote(remoteOptions).init(this.options.readyCb);
+
+    if (this.options.readyCb) {
+        this.api = webdriverio.remote(remoteOptions).init(this.options.readyCb);
+    }
+    else {
+        this.api = webdriverio.remote(remoteOptions).init();
+    }
+
+    var api = this.api;
+
     this.api._client = this;
 
     _.forOwn(addonCommands, function(handler, command) {
@@ -649,5 +651,6 @@ api.newWindowWithId = function(url, id, options, cb) {
 };
 
 Client.prototype.api = api;
+Client.prototype.streaming = require('./streaming');
 
 module.exports = Client;
