@@ -30,16 +30,25 @@ var _ = require('lodash');
 //        });
 //
 var Client = function(options) {
-    this.options = _.extend({
+    this.options = _.merge({
         username: false,
-        password: false,
-        remoteOptions: {
-        }
+        password: false
     }, options);
 
-    var remoteOptions = _.extend({
+    var remoteOptions = _.merge({
         desiredCapabilities: {
-            browserName: 'chrome'
+            browserName: 'chrome',
+            chromeOptions: {
+                args: ['disable-popup-blocking', 'disable-translate', 'start-maximized'],
+                prefs: {
+                    profile: {
+                        default_content_settings: {
+                            images: 2,
+                            popups: 5
+                        }
+                    }
+                }
+            }
         }
     }, this.options.remoteOptions);
 
@@ -58,6 +67,15 @@ var Client = function(options) {
 
     _.forOwn(addonCommands, function(handler, command) {
         api.addCommand(command, handler);
+    });
+
+    // Get main window id
+    api.windowHandle(function(err, res) {
+        if (err) {
+            throw err;
+        }
+
+        api._client.mainWindowId = res.value;
     });
 };
 
@@ -613,15 +631,24 @@ api.unfollow = function(user_id, cb) {
 //
 // Fetches all tweets from current page
 api.getTweets = function(cb) {
-    this.isExisting('.new-tweets-bar', function(err, res) {
-        if (err) {
-            return cb(err);
-        }
+    // Remove any stylesheets
+    this.execute('var stylesheets = document.getElementsByTagName("link"), i, sheet; for(i in stylesheets) { sheet = stylesheets[i]; if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }');
 
-        if (!err && res) {
-            return this.click('.new-tweets-bar');
-        }
-    });
+    this.isExisting('.new-tweets-bar', function(err, res) {
+            if (err) {
+                return;
+            }
+
+            if (!err && res) {
+                this.click('.new-tweets-bar', function(err) {
+                    if (err) {
+                        return;
+                    }
+                });
+
+                return;
+            }
+        });
 
     this.getHTML('.stream .stream-items .stream-item .tweet', function(err, res) {
         if (err) {
@@ -651,6 +678,6 @@ api.newWindowWithId = function(url, id, options, cb) {
 };
 
 Client.prototype.api = api;
-Client.prototype.streaming = require('./streaming');
+Client.prototype = _.merge( Client.prototype, require('./streaming') ); // Mixin streaming methods
 
 module.exports = Client;

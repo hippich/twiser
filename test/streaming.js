@@ -11,8 +11,9 @@ var client = new Client({
     password: process.env.TWITTER_PASSWORD
 });
 
-client.api.url('https://twitter.com/search?f=realtime&q=js&src=typd')
-          .call(function() { client.stream(); });
+client.stream('https://twitter.com/search?f=realtime&q=js&src=typd');
+client.stream('https://twitter.com/search?f=realtime&q=php&src=typd');
+client.stream('https://twitter.com/search?f=realtime&q=java&src=typd');
 
 setTimeout(function() {
     client.pauseStream();
@@ -27,7 +28,7 @@ setTimeout(function() {
 }, 60000);
 
 setTimeout(function() {
-    client.stopStream();
+    client.stopStreamingAll();
     client.api.shutdown();
     console.log('stopped');
 }, 120000);
