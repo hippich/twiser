@@ -1,5 +1,5 @@
 /* eslint no-space-before-semi:0, camelcase: 0, no-process-exit: 0 */
-var Client = require('../index');
+var Client = require('../lib/index');
 var fs = require('fs');
 
 if (!process.env.TWITTER_USERNAME || !process.env.TWITTER_PASSWORD) {

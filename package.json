@@ -2,7 +2,7 @@
   "name": "twiser",
   "version": "0.0.1",
   "description": "Twitter API via Chrome Browser",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "mocha",
     "docs": "./node_modules/.bin/docco index.js"
