@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha",
-    "docs": "./node_modules/.bin/docco index.js"
+    "docs": "./node_modules/.bin/docco-husky -name 'Twiser.js' lib/index.js lib/streaming.js"
   },
   "repository": {
     "type": "git",
@@ -28,6 +28,7 @@
     "webdriverio": "^2.4.5"
   },
   "devDependencies": {
-    "docco": "^0.7.0"
+    "docco-husky-plus": "^0.4.5",
+    "docco-ng": "^0.1.0"
   }
 }

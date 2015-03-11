@@ -1,0 +1,670 @@
+<!DOCTYPE html><html><head><title>index.js</title><meta http-equiv="Content-Type" content="text/html" charset="UTF-8"><link rel="stylesheet" media="all" href="//fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600"><link rel="stylesheet" media="all" href="../docco.css"><script src="../assets/prettify.js"></script><link rel="stylesheet" media="all" href="../assets/prettify.css"><script>window.addEventListener('DOMContentLoaded', function(e) {
+  var items = document.querySelectorAll('pre');
+  Array.prototype.forEach.call(items, function (item) {
+    if (item.querySelectorAll('code').length > 0) {
+      item.classList.add('prettyprint');
+    }
+  });
+  prettyPrint();
+});
+</script></head><body><div id="container"><div id="background"></div><div id="jump_to">Jump To &hellip;<div id="jump_wrapper"><div id="jump_page"><a href="../index.html" class="source"><span class="file_name">README</span></a><a href="../lib/index.js.html" class="source selected"><span class="base_path">lib / </span><span class="file_name">index.js</span></a><a href="../lib/streaming.js.html" class="source "><span class="base_path">lib / </span><span class="file_name">streaming.js</span></a></div></div></div><table cellpadding="0" cellspacing="0"><thead><tr><th class="docs"><h1>index.js</h1><div class="filepath">lib/</div></th><th class="code"></th></tr></thead><tbody><tr id="section-1"><td class="docs"><div class="pilwrap"><a href="#section-1" class="pilcrow">&#182;</a></div><div class="dox"><div class="summary"><p>eslint no-underscore-dangle: 0, handle-callback-err: 0, camelcase: 0</p></div><div class="body"></div></div>
+</td><td class="code"><pre class="source-block"><code>var debug = require(&#39;debug&#39;)(&#39;twiser&#39;);
+var webdriverio = require(&#39;webdriverio&#39;);
+var _ = require(&#39;lodash&#39;);
+
+</code></pre></td></tr><tr id="section-2"><td class="docs"><div class="pilwrap"><a href="#section-2" class="pilcrow">&#182;</a></div><p><strong>Client class</strong></p>
+<p>Sample usage:</p>
+<pre><code>   var Client = require(&#39;twiser&#39;);
+
+   var client = new Client({
+     username: &#39;joe&#39;,
+     password: &#39;passx123&#39;,
+     remoteOptions: { // webdriverio remote options - http://webdriver.io/guide.html
+       host: &#39;192.168.155.101&#39;,
+       desiredCapabilities: {
+           browser: &#39;firefox&#39;
+       }
+     }
+   });
+
+   client.api.login()
+             .setNewPassword(&#39;qwe123qwe&#39;)
+             .url(&#39;https://twitter.com/search?f=realtime&amp;q=football&amp;src=typd&#39;);
+
+   client.stream(function(tweet) {
+     console.log(tweet.text);
+   });
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>var Client = function(options) {
+    this.options = _.merge({
+        username: false,
+        password: false
+    }, options);
+
+    var remoteOptions = _.merge({
+        desiredCapabilities: {
+            browserName: &#39;chrome&#39;,
+            chromeOptions: {
+                args: [&#39;disable-popup-blocking&#39;, &#39;disable-translate&#39;, &#39;start-maximized&#39;],
+                prefs: {
+                    profile: {
+                        default_content_settings: {
+                            images: 2,
+                            popups: 5
+                        }
+                    }
+                }
+            }
+        }
+    }, this.options.remoteOptions);
+
+    var addonCommands = this.api;
+
+    if (this.options.readyCb) {
+        this.api = webdriverio.remote(remoteOptions).init(this.options.readyCb);
+    }
+    else {
+        this.api = webdriverio.remote(remoteOptions).init();
+    }
+
+    var api = this.api;
+
+    this.api._client = this;
+
+    _.forOwn(addonCommands, function(handler, command) {
+        api.addCommand(command, handler);
+    });
+
+</code></pre></td></tr><tr id="section-3"><td class="docs"><div class="pilwrap"><a href="#section-3" class="pilcrow">&#182;</a></div><p>Get main window id</p>
+
+</td><td class="code"><pre class="source-block"><code>    api.windowHandle(function(err, res) {
+        if (err) {
+            throw err;
+        }
+
+        api._client.mainWindowId = res.value;
+    });
+};
+
+var api = {};
+
+</code></pre></td></tr><tr id="section-4"><td class="docs"><div class="pilwrap"><a href="#section-4" class="pilcrow">&#182;</a></div><p><strong>Login using username/password</strong></p>
+<p>Open /login page and try to login with supplied username/password</p>
+
+</td><td class="code"><pre class="source-block"><code>api.login = function(cb) {
+    var client = this._client;
+
+    if (!client.options.username || !client.options.password) {
+        return cb( new Error(&#39;Login requested, but no username/password provided&#39;) );
+    }
+
+    this.url(function(err, res) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (! res.value.match(/^https\:\/\/twitter\.com\/login/i) ) {
+                return this.url(&#39;https://twitter.com/login&#39;);
+            }
+        })
+        .title(function(err, res) {
+            if (err) {
+                return cb(err);
+            }
+
+            var title = res.value;
+
+            if (title.match(/login/i)) {
+                debug(&#39;Logging in with username: %s and password: %s&#39;, client.options.username, client.options.password);
+
+                return this.setValue(&#39;#page-container .js-username-field&#39;, client.options.username)
+                           .setValue(&#39;#page-container .js-password-field&#39;, client.options.password)
+                           .click(&#39;#page-container button.submit&#39;);
+            }
+            else {
+                debug(&#39;Already logged in&#39;);
+            }
+        })
+        .url(function(err, res) {
+            if (err) {
+                return cb(err);
+            }
+
+            var url = res.value;
+
+            if (url.match(/login\/error/i)) {
+                return this.getText(&#39;.message-text&#39;, function(err, text) {
+                    if (err) {
+                        return cb(err);
+                    }
+
+                    return cb( new Error(&#39;Unable to login. Reason: &#39; + text) );
+                });
+            }
+
+            return cb(null);
+        });
+};
+
+</code></pre></td></tr><tr id="section-5"><td class="docs"><div class="pilwrap"><a href="#section-5" class="pilcrow">&#182;</a></div><p><strong>Logout</strong></p>
+
+</td><td class="code"><pre class="source-block"><code>api.logout = function(cb) {
+    this.url(&#39;https://twitter.com/logout&#39;)
+        .click(&#39;.signout-wrapper button.primary-btn&#39;)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-6"><td class="docs"><div class="pilwrap"><a href="#section-6" class="pilcrow">&#182;</a></div><p><strong>Change account password</strong></p>
+<p>Login, open password settings page, fill form to change password and press submit.
+It will automaticaly update current client&#39;s password to new one.</p>
+<p>Pass new password:</p>
+<pre><code>client.api.setNewPassword(&#39;asd123asd&#39;);
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>api.setNewPassword = function(newPassword, cb) {
+    var client = this._client;
+
+    debug(&#39;Changing password. Old: %s, New: %s&#39;, client.options.password, newPassword);
+
+    this.url(&#39;https://twitter.com/settings/password&#39;)
+        .title(function(err, res) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (res.value.match(/login/i)) {
+                return this.login();
+            }
+
+            if (! res.value.match(/settings/i)) {
+                return cb( new Error(&#39;Not sure where I ended up :(&#39;) );
+            }
+        })
+        .setValue(&#39;#current_password&#39;, client.options.password)
+        .setValue(&#39;#user_password&#39;, newPassword)
+        .setValue(&#39;#user_password_confirmation&#39;, newPassword)
+        .click(&#39;#settings_save&#39;)
+        .url(function(err, res) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (res.value !== &#39;https://twitter.com/settings/passwords/password_reset_confirmation&#39;) {
+                debug(&#39;Password did not change successfuly&#39;);
+
+                return this
+                    .getText(&#39;#settings-alert-box h4&#39;, function(err, text) {
+                        debug(&#39;got text&#39;);
+
+                        if (err) {
+                            return cb(err);
+                        }
+
+                        return cb( new Error(&#39;Unable to change password: &#39; + text) );
+                    })
+                ;
+            }
+
+            this._client.options.password = newPassword;
+
+            return cb(null);
+        });
+};
+
+</code></pre></td></tr><tr id="section-7"><td class="docs"><div class="pilwrap"><a href="#section-7" class="pilcrow">&#182;</a></div><p><strong>Shutdown</strong></p>
+<p>Call to close all browser windows. Do it before exit, as browsers will not be closed automaticaly.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.shutdown = function(cb) {
+    this.end();
+    cb(null);
+};
+
+</code></pre></td></tr><tr id="section-8"><td class="docs"><div class="pilwrap"><a href="#section-8" class="pilcrow">&#182;</a></div><p><strong>Open profile page</strong></p>
+<p>Using supplied <code>profile</code> parameter, open profile page for this user. If <code>profile</code> is not specified,
+opens own profile page.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.goToProfile = function(profile, cb) {
+    var client = this._client;
+
+    if (! cb) {
+        cb = profile;
+        profile = null;
+    }
+
+    var id = profile || client.options.username;
+
+    if (! id) {
+        return cb(new Error(&#39;No username available&#39;));
+    }
+
+    var url = &#39;https://twitter.com/&#39; + id;
+
+    debug(&#39;Checking if we are already on profile page: %s&#39;, url);
+
+    this.url(function(err, res) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (res.value !== url) {
+                return this.url(url);
+            }
+        })
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-9"><td class="docs"><div class="pilwrap"><a href="#section-9" class="pilcrow">&#182;</a></div><p><strong>Edit profile</strong></p>
+<p>Logs in, open profile page and click <code>Edit</code> button. Used to begin changes in profile info.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.editProfile = function(cb) {
+    this.login()
+        .goToProfile()
+        .click(&#39;[data-scribe-element=&quot;profile_edit_button&quot;]&#39;)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-10"><td class="docs"><div class="pilwrap"><a href="#section-10" class="pilcrow">&#182;</a></div><p><strong>Save profile</strong></p>
+<p>Clicks Save button. This usually called once you are done changing profile.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.saveProfile = function(cb) {
+    this.click(&#39;.ProfilePage-saveButton&#39;)
+        .getActionMessage(function(err, text) {
+            if (err) { return cb(err); }
+
+            if (text &amp;&amp; text.indexOf(&#39;Your profile has been saved.&#39;) === -1) {
+                return cb(new Error(&#39;Unable to save profile info: &#39; + text));
+            }
+        })
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-11"><td class="docs"><div class="pilwrap"><a href="#section-11" class="pilcrow">&#182;</a></div><p><strong>Get action message</strong></p>
+<p>If some action produce message, you can use this action to retrieve it.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.getActionMessage = function(cb) {
+    this.getText(&#39;.message-text&#39;, function(err, text) {
+            if (err) { return cb(err); }
+
+            if (text) {
+                debug(&#39;Got message: %s&#39;, text);
+                return cb(null, text);
+            }
+
+            cb(null);
+        });
+};
+
+</code></pre></td></tr><tr id="section-12"><td class="docs"><div class="pilwrap"><a href="#section-12" class="pilcrow">&#182;</a></div><p><strong>Get profile info</strong></p>
+<p>Return object with profile information:</p>
+<pre><code>&quot;profile&quot;: {
+  &quot;name&quot;: &quot;John Doe&quot;,
+  &quot;bio&quot;: &quot;Bio line from profile&quot;,
+  &quot;location&quot;: &quot;London, UK&quot;,
+  &quot;url&quot;: &quot;https://google.com/&quot;
+}
+</code></pre><p>Sample usage:</p>
+<pre><code>client.api.getProfileInfo(function(err, info) {
+  console.log(info.name);
+});
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>api.getProfileInfo = function(cb) {
+    var profile = {
+        name     : &#39;&#39;,
+        bio      : &#39;&#39;,
+        location : &#39;&#39;,
+        url      : &#39;&#39;
+    };
+
+    this.goToProfile()
+        .getText(&#39;.ProfileHeaderCard-nameLink&#39;, function(err, text) {
+            profile.name = text;
+        })
+        .getText(&#39;.ProfileHeaderCard-bio&#39;, function(err, text) {
+            profile.bio = text;
+        })
+        .getText(&#39;.ProfileHeaderCard-locationText&#39;, function(err, text) {
+            profile.location = text;
+        })
+        .getAttribute(&#39;.ProfileHeaderCard-urlText a&#39;, &#39;title&#39;, function(err, title) {
+            profile.url = title;
+        })
+        .call(function() {
+            cb(null, profile);
+        });
+};
+
+</code></pre></td></tr><tr id="section-13"><td class="docs"><div class="pilwrap"><a href="#section-13" class="pilcrow">&#182;</a></div><p><strong>Set profile info</strong></p>
+<p>Set information on user profile. Pass following object as a first parameter:</p>
+<pre><code>&quot;profile&quot;: {
+  &quot;name&quot;: &quot;James Bond&quot;,
+  &quot;bio&quot;: &quot;Agent 007&quot;,
+  &quot;location&quot;: &quot;Paris, FR&quot;,
+  &quot;url&quot;: &quot;&quot;
+}
+</code></pre><p>Make sure to be on a profile page, and click &#39;Edit&#39; button first.</p>
+<p>Sample usage:</p>
+<pre><code>client.api.login()
+client.api.goToProfile()
+client.api.editProfile()
+client.api.setProfileInfo({
+  &quot;name&quot;: &quot;James Bond&quot;,
+  &quot;bio&quot;: &quot;Agent 007&quot;,
+  &quot;location&quot;: &quot;Paris, FR&quot;,
+  &quot;url&quot;: &quot;&quot;
+});
+client.api.saveProfile()
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>api.setProfileInfo = function(profile, cb) {
+    debug(&#39;Setting profile info: %j&#39;, profile);
+
+    if (profile.name) {
+        this.setValue(&#39;#user_name&#39;, profile.name);
+    }
+
+    if (profile.bio) {
+        this.setValue(&#39;#user_description&#39;, profile.bio);
+    }
+
+    if (profile.location) {
+        this.setValue(&#39;#user_location&#39;, profile.location);
+    }
+
+    if (profile.url) {
+        this.setValue(&#39;#user_url&#39;, profile.url);
+    }
+
+    this.call(cb);
+};
+
+</code></pre></td></tr><tr id="section-14"><td class="docs"><div class="pilwrap"><a href="#section-14" class="pilcrow">&#182;</a></div><p><strong>Post Update</strong></p>
+<p>Post tweet. Supply following object:</p>
+<pre><code> client.api.postUpdate({
+   &quot;post&quot;: &quot;Hello, this is my #twitter post&quot;,
+   &quot;inreply&quot;: &quot;2532523523523523&quot;, // Optional tweet_id of the post to reply to
+   &quot;image&quot;: &quot;/home/joe/images/cat.jpg&quot; // Optional path to the image to include in the tweet
+ });
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>api.postUpdate = function(update, cb) {
+    if (_.isString(update)) {
+        update = {
+            post: update
+        };
+    }
+
+    this.login();
+
+    var selectorPrefix = &#39;.timeline-tweet-box form&#39;;
+
+    if (update.inreply) {
+        selectorPrefix = &#39;.inline-reply-tweetbox&#39;;
+        this.goToStatus(update.inreply);
+    }
+
+
+    this.click(selectorPrefix + &#39; .tweet-box&#39;)
+        .keys(_.repeat(&quot;\b&quot;, 140))
+        .keys(update.post);
+
+    if (update.image) {
+        this.chooseFile(selectorPrefix + &#39; .file-input[type=file]&#39;, update.image)
+            .waitFor(selectorPrefix + &#39; .previews .preview&#39;)
+            .pause(1000);
+    }
+
+    this.scroll(selectorPrefix + &#39; .Icon--tweet&#39;)
+        .click(selectorPrefix + &#39; .Icon--tweet&#39;)
+        .getActionMessage(function(err, text) {
+            if (text &amp;&amp; !text.match(/Your tweet.+has been sent\!/)) {
+                return cb(&#39;Unable to post update: &#39; + text);
+            }
+        })
+        .waitFor(&quot;//div[contains(concat(&#39; &#39;,normalize-space(@class),&#39; &#39;),&#39; my-tweet &#39;)]//span[contains(text(), &#39;now&#39;)]&quot;, 10000)
+        .getAttribute(&#39;.stream-container .my-tweet&#39;, &#39;data-tweet-id&#39;, function(err, ids) {
+            var id;
+
+            if (err) { return cb(err); }
+
+            if (! _.isArray(ids)) {
+                id = ids;
+            }
+            else {
+                id = ids.shift();
+            }
+
+            debug(&#39;New tweet posted. Id %s&#39;, id);
+
+            cb(null, id);
+        });
+};
+
+</code></pre></td></tr><tr id="section-15"><td class="docs"><div class="pilwrap"><a href="#section-15" class="pilcrow">&#182;</a></div><p><strong>Delete tweet</strong></p>
+<p>Pass <code>id</code> to delete tweet with <code>tweet_id</code> == <code>id</code></p>
+
+</td><td class="code"><pre class="source-block"><code>api.deleteTweet = function(id, cb) {
+    this.goToStatus(id)
+        .click(&#39;[data-item-id=&quot;&#39; + id + &#39;&quot;] .ProfileTweet-action--more .ProfileTweet-actionButton&#39;)
+        .click(&#39;[data-item-id=&quot;&#39; + id + &#39;&quot;] li.js-actionDelete button&#39;)
+        .click(&#39;#delete-tweet-dialog .delete-action&#39;)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-16"><td class="docs"><div class="pilwrap"><a href="#section-16" class="pilcrow">&#182;</a></div><p><strong>Go to status</strong></p>
+<p>Opens specific tweet page</p>
+
+</td><td class="code"><pre class="source-block"><code>api.goToStatus = function(id, cb) {
+    var client = this._client;
+
+    this.url(&#39;https://twitter.com/&#39; + client.options.username + &#39;/status/&#39; + id)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-17"><td class="docs"><div class="pilwrap"><a href="#section-17" class="pilcrow">&#182;</a></div><p><strong>Go to notification settings</strong></p>
+<p>Opens /settings/notifications page</p>
+
+</td><td class="code"><pre class="source-block"><code>api.goToNotificationsSettings = function(cb) {
+    this.login()
+        .url(&#39;https://twitter.com/settings/notifications&#39;)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-18"><td class="docs"><div class="pilwrap"><a href="#section-18" class="pilcrow">&#182;</a></div><p><strong>Turn off email notifications</strong></p>
+<p>Allows you to turn off all email communication from twitter for this account</p>
+
+</td><td class="code"><pre class="source-block"><code>api.turnOffEmailNotifications = function(cb) {
+    this.goToNotificationsSettings()
+        .isExisting(&#39;#notifications-global-off&#39;, function(err, res) {
+            if (err) { cb(err); }
+
+            if (! res) {
+                debug(&#39;Notifications already turned off&#39;);
+                return cb(null);
+            }
+
+            return this.click(&#39;#notifications-global-off&#39;);
+        })
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-19"><td class="docs"><div class="pilwrap"><a href="#section-19" class="pilcrow">&#182;</a></div><p><strong>Turn on email notifications</strong></p>
+<p>Allows you to turn on enabled email communication for this twitter account.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.turnOnEmailNotifications = function(cb) {
+    this.goToNotificationsSettings()
+        .isExisting(&#39;#notifications-global-on&#39;, function(err, res) {
+            if (err) { cb(err); }
+
+            if (! res) {
+                debug(&#39;Notifications already turned on&#39;);
+                return cb(null);
+            }
+
+            return this.click(&#39;#notifications-global-on&#39;);
+        })
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-20"><td class="docs"><div class="pilwrap"><a href="#section-20" class="pilcrow">&#182;</a></div><p><strong>Change notification settings</strong></p>
+<p>Allows to turn on/off individual emails</p>
+<p>Following types are available:</p>
+<ul>
+<li>send_favorited_email</li>
+<li>send_favorited_mention_email</li>
+<li>send_retweeted_email</li>
+<li>send_retweeted_mention_email</li>
+<li>send_mention_email</li>
+<li>send_new_friend_email</li>
+<li>send_new_direct_text_email</li>
+<li>send_shared_tweet_e</li>
+<li>mailsend_address_book_notification_email</li>
+<li>send_favorited_retweet_email</li>
+<li>send_retweeted_retweet_email</li>
+<li>network_digest_schedule</li>
+<li>send_network_activity_email</li>
+<li>performance_digest_schedulesend_magic_recs_e</li>
+<li>mail&#39; +</li>
+<li>send_email_newsletter</li>
+<li>send_activation_email</li>
+<li>send_resurrection_email_1</li>
+<li>send_partner_email</li>
+<li>send_survey_emailsend_follow_recs_email</li>
+<li>send_similar_people_email</li>
+</ul>
+<p>Example:</p>
+<pre><code> client.api.changeNotificationsSettings({
+   send_favorited_email: true, // Turn on &#39;Favorited&#39; emails
+   sent_retweeted_email: false // Turn off &#39;Retweeted&#39; emails
+ });
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>api.changeNotificationsSettings = function(settings, cb) {
+    var api = this;
+
+    this.goToNotificationsSettings();
+
+    if (! _.isObject(settings)) {
+        return cb(new Error(&#39;`settings` should be object with following possibble options: &#39; +
+                            &#39;send_favorited_email,send_favorited_mention_email,send_retweeted_email,&#39; +
+                            &#39;send_retweeted_mention_email,send_mention_email,send_new_friend_email,&#39; +
+                            &#39;send_new_direct_text_email,send_shared_tweet_email,send_address_book_notification_email,&#39; +
+                            &#39;send_favorited_retweet_email,send_retweeted_retweet_email,network_digest_schedule,&#39; +
+                            &#39;send_network_activity_email,performance_digest_schedule,send_magic_recs_email,&#39; +
+                            &#39;send_email_newsletter,send_activation_email,send_resurrection_email_1,&#39; +
+                            &#39;send_partner_email,send_survey_email,send_follow_recs_email,send_similar_people_email&#39;));
+    }
+
+    var res = _.forOwn(settings, function(v, k) {
+        api.getAttribute(&#39;#&#39; + k, &#39;checked&#39;, function(err, value) {
+            if (err) { cb(err); return false; }
+
+            if ((value &amp;&amp; !v) || (!value &amp;&amp; v)) {
+                return this.click(&#39;#&#39; + k);
+            }
+        });
+    });
+
+    if (! res) {
+        return false;
+    }
+
+    api.click(&#39;#settings_save&#39;)
+       .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-21"><td class="docs"><div class="pilwrap"><a href="#section-21" class="pilcrow">&#182;</a></div><p><strong>Follow/Unfollow</strong></p>
+<p>Specify action <code>follow</code> or <code>unfollow</code> to follow/unfollow user specified by user_id.
+<code>user_id</code> can be both screen_name or twitter user_id.</p>
+
+</td><td class="code"><pre class="source-block"><code>api.followAction = function(action, user_id, cb) {
+    var url;
+
+    if (_.isNumber(user_id) || (_.isString(user_id) &amp;&amp; user_id.match(/^\d+$/))) {
+        url = &#39;https://twitter.com/intent/user?user_id=&#39; + user_id;
+    }
+    else {
+        url = &#39;https://twitter.com/intent/user?screen_name=&#39; + user_id;
+    }
+
+    this.url(url)
+        .isVisible(&#39;form.&#39; + action, function(err, visible) {
+            if (err) {
+                return cb(err);
+            }
+
+            if (visible) {
+                return this.click(&#39;form.&#39; + action + &#39; button&#39;);
+            }
+        })
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-22"><td class="docs"><div class="pilwrap"><a href="#section-22" class="pilcrow">&#182;</a></div><p><strong>Follow</strong></p>
+<p>Follows user specified by user_id. <code>user_id</code> can be either numeric user_id, or screen_name</p>
+
+</td><td class="code"><pre class="source-block"><code>api.follow = function(user_id, cb) {
+    this.followAction(&#39;follow&#39;, user_id)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-23"><td class="docs"><div class="pilwrap"><a href="#section-23" class="pilcrow">&#182;</a></div><p><strong>Unfollow</strong></p>
+<p>Unfollows user specified by user_id. <code>user_id</code> can be either numeric user_id, or screen_name</p>
+
+</td><td class="code"><pre class="source-block"><code>api.unfollow = function(user_id, cb) {
+    this.followAction(&#39;unfollow&#39;, user_id)
+        .call(cb);
+};
+
+</code></pre></td></tr><tr id="section-24"><td class="docs"><div class="pilwrap"><a href="#section-24" class="pilcrow">&#182;</a></div><p><strong>getTweets</strong></p>
+<p>Fetches all tweets from current page</p>
+
+</td><td class="code"><pre class="source-block"><code>api.getTweets = function(cb) {
+</code></pre></td></tr><tr id="section-25"><td class="docs"><div class="pilwrap"><a href="#section-25" class="pilcrow">&#182;</a></div><p>Remove any stylesheets</p>
+
+</td><td class="code"><pre class="source-block"><code>    this.execute(&#39;var stylesheets = document.getElementsByTagName(&quot;link&quot;), i, sheet; for(i in stylesheets) { sheet = stylesheets[i]; if (sheet.parentNode) sheet.parentNode.removeChild(sheet); }&#39;);
+
+    this.isExisting(&#39;.new-tweets-bar&#39;, function(err, res) {
+            if (err) {
+                return;
+            }
+
+            if (!err &amp;&amp; res) {
+                this.click(&#39;.new-tweets-bar&#39;, function(err) {
+                    if (err) {
+                        return;
+                    }
+                });
+
+                return;
+            }
+        });
+
+    this.getHTML(&#39;.stream .stream-items .stream-item .tweet&#39;, function(err, res) {
+        if (err) {
+            return cb(err);
+        }
+
+        if (! _.isArray(res)) {
+            res = [res];
+        }
+
+        return cb(null, res);
+    });
+};
+
+</code></pre></td></tr><tr id="section-26"><td class="docs"><div class="pilwrap"><a href="#section-26" class="pilcrow">&#182;</a></div><p><strong>Utility methods</strong></p>
+
+</td><td class="code"><pre class="source-block"><code>api.newWindowWithId = function(url, id, options, cb) {
+    this.newWindow(url, id, options, function(err) {
+        if (err) {
+            return cb(err);
+        }
+
+        this.windowHandle(function(err, res) {
+            return cb(err, res);
+        });
+    });
+};
+
+Client.prototype.api = api;
+Client.prototype = _.merge( Client.prototype, require(&#39;./streaming&#39;) ); // Mixin streaming methods
+
+module.exports = Client;
+
+</code></pre></td></tr></tbody></table><div id="generated">generated Wed Mar 11 2015 00:19:44 GMT-0500 (CDT)  </div><div id="projectname"><a href="../index.html">Twiser.js</a></div></div></body></html>
