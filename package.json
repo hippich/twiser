@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha",
-    "docs": "./node_modules/.bin/docco-husky -name 'Twiser.js' lib/index.js lib/streaming.js"
+    "docs": "./node_modules/docco-ng/bin/generate lib/streaming.js lib/tweet.js"
   },
   "repository": {
     "type": "git",
