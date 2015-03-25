@@ -34,7 +34,7 @@ setTimeout(function() {
 }, 120000);
 
 process.on('uncaughtException', function (err) {
-    console.log(err);
+    console.log(err.stack);
 
     client.api.saveScreenshot('./exception.png')
               .source('body', function(err, res) {
