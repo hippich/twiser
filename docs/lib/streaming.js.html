@@ -55,6 +55,8 @@ module.exports = {
     }
 </code></pre>
 </td><td class="code"><pre class="source-block"><code>    stream: function(url, options) {
+        debug(&#39;Streaming %s&#39;, url);
+
         var client = this;
         var id = url;
 
@@ -77,6 +79,7 @@ module.exports = {
 </code></pre></td></tr><tr id="section-5"><td class="docs"><div class="pilwrap"><a href="#section-5" class="pilcrow">&#182;</a></div><p>If streaming record with this URL already exists, just add additional callback into cb array</p>
 
 </td><td class="code"><pre class="source-block"><code>        if (this.currentStreams[ id ]) {
+            debug(&#39;Stream for %s already exists. Adding callback.&#39;);
             this.currentStreams[ id ].cb.push( options.cb );
             this.resumeStream();
             return this;
@@ -96,7 +99,7 @@ so only new ones are streamed.</p>
 
 </td><td class="code"><pre class="source-block"><code>            if (options.onlyNew) {
                 this.waitFor(&#39;#content-main-heading&#39;)
-                    .execute(&#39;$(&quot;li.stream-item&quot;).remove();&#39;);
+                    .execute(&#39;if (window.$) $(&quot;li.stream-item&quot;).remove();&#39;);
             }
 
             var cb = options.cb;
@@ -110,7 +113,7 @@ so only new ones are streamed.</p>
 
             client.currentStreams[ id ] = stream;
 
-            this.resumeStream();
+            client.resumeStream();
         });
     },
 
@@ -132,30 +135,31 @@ so only new ones are streamed.</p>
             var stream = this.currentStreams[id];
             var url = stream.url;
 
-            client.api
+            var api = this.api
                 .call(function() {
                     debug(&#39;Checking window %s for url %s&#39;, stream.id, url);
                 })
                 .window(stream.id);
 
             if (id === &#39;#direct&#39;) {
+                console.log(&#39;No direct messages streaming yet.&#39;);
             }
             else {
-                client.getTweets(function(err, tweets) {
-                        if (err) {
-                            return;
-                        }
+                api.getTweets(function(err, tweets) {
+                    if (err) {
+                        return;
+                    }
 
-                        debug(&#39;found %d tweets&#39;, tweets.length);
+                    debug(&#39;found %d tweets&#39;, tweets.length);
 
-                        tweets.reverse().forEach(function(item) {
-                            var tweet = new Tweet(item);
-                            stream.cb.forEach(function(cb) {
-                                cb.call(client, tweet, stream);
-                            });
+                    tweets.reverse().forEach(function(item) {
+                        var tweet = new Tweet(item);
+                        stream.cb.forEach(function(cb) {
+                            cb.call(client, tweet, stream);
                         });
-                    })
-                    .execute(&#39;$(&quot;li.stream-item&quot;).remove();&#39;);
+                    });
+                })
+                .execute(&#39;if (window.$) $(&quot;li.stream-item&quot;).remove();&#39;);
             }
         }.bind(this));
     },
@@ -220,4 +224,4 @@ Calling <code>.pauseStream</code> will switch focus to <code>main</code> tab, so
     }
 };
 
-</code></pre></td></tr></tbody></table><div id="generated">generated Sat Mar 21 2015 00:36:11 GMT-0500 (CDT)  </div></div></body></html>
+</code></pre></td></tr></tbody></table><div id="generated">generated Mon Apr 27 2015 23:34:55 GMT-0500 (CDT)  </div></div></body></html>
