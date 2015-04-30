@@ -1,6 +1,6 @@
 {
   "name": "twiser",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Twitter API via Chrome Browser",
   "main": "lib/index.js",
   "scripts": {
