@@ -1,0 +1,227 @@
+<!DOCTYPE html><html><head><title>streaming.js</title><meta http-equiv="Content-Type" content="text/html" charset="UTF-8"><link rel="stylesheet" media="all" href="//fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600"><link rel="stylesheet" media="all" href="../docco.css"><script src="../assets/prettify.js"></script><link rel="stylesheet" media="all" href="../assets/prettify.css"><script>window.addEventListener('DOMContentLoaded', function(e) {
+  var items = document.querySelectorAll('pre');
+  Array.prototype.forEach.call(items, function (item) {
+    if (item.querySelectorAll('code').length > 0) {
+      item.classList.add('prettyprint');
+    }
+  });
+  prettyPrint();
+});
+</script></head><body><div id="container"><div id="background"></div><div id="jump_to">Jump To &hellip;<div id="jump_wrapper"><div id="jump_page"><a href="../index.html" class="source"><span class="file_name">README</span></a><a href="../lib/streaming.js.html" class="source selected"><span class="base_path">lib / </span><span class="file_name">streaming.js</span></a><a href="../lib/tweet.js.html" class="source "><span class="base_path">lib / </span><span class="file_name">tweet.js</span></a></div></div></div><table cellpadding="0" cellspacing="0"><thead><tr><th class="docs"><h1>streaming.js</h1><div class="filepath">lib/</div></th><th class="code"></th></tr></thead><tbody><tr id="section-1"><td class="docs"><div class="pilwrap"><a href="#section-1" class="pilcrow">&#182;</a></div><div class="dox"><div class="summary"><p>eslint no-underscore-dangle: 0</p></div><div class="body"></div></div>
+</td><td class="code"><pre class="source-block"><code>var debug = require(&#39;debug&#39;)(&#39;twiser-streaming&#39;);
+var _ = require(&#39;lodash&#39;);
+
+var Tweet = require(&#39;./tweet&#39;);
+
+</code></pre></td></tr><tr id="section-2"><td class="docs"><div class="pilwrap"><a href="#section-2" class="pilcrow">&#182;</a></div><h1 id="streaming">Streaming</h1>
+<p>When you ask to stream tweets from specific URL, new tab is opened with this URL.
+Every 15 seconds Stream Cycle is run to iterate over all streaming tabs, and fetch
+all tweets from these. Then check if particular tweet is likely new, and call
+streaming callback with this tweet. Important - there is no guarantee you will
+particular tweet only once, so if you code requeres never to process same tweet
+again, you need to implement some sort of storage of seen tweets in your code.</p>
+
+</td><td class="code"><pre class="source-block"><code>
+module.exports = {
+    currentStreams: {},
+    streamingInterval: false,
+
+</code></pre></td></tr><tr id="section-3"><td class="docs"><div class="pilwrap"><a href="#section-3" class="pilcrow">&#182;</a></div><p><strong>Streaming</strong></p>
+<p>This method allows to stream tweets from <code>streamable</code> pages.
+<code>Streamable</code> pages include: logged in home page, Discover page and Search results page.</p>
+<p>Currently only callback can be specified in <code>options</code>:</p>
+<pre><code>  client.stream(&#39;https://twitter.com/search?f=realtime&amp;q=js&amp;src=typd&#39;, {
+    cb: function(tweet) { // This callback will be called with new tweet
+      console.log(tweet.user.id);
+    }
+  });
+</code></pre><p>Here is example of tweet object:</p>
+<pre><code>    {
+        &quot;id_str&quot;: &quot;567646576014008320&quot;,
+        &quot;id&quot;: &quot;567646576014008320&quot;,
+        &quot;created_at&quot;: &quot;2015-02-17T11:27:44.000Z&quot;,
+        &quot;text&quot;: &quot;Java vs. Node.js: An epic battle for developer mind share http://ift.tt/1Az9Z4l  ===== http://androidanalytic.com &quot;,
+        &quot;html&quot;: &quot;Java vs. Node.&lt;strong&gt;js&lt;/strong&gt;: An epic battle for developer mind share &lt;a href=\&quot;http://t.co/6eLpH0178e\&quot; rel=\&quot;nofollow\&quot; dir=\&quot;ltr\&quot; data-expanded-url=\&quot;http://ift.tt/1Az9Z4l\&quot; class=\&quot;twitter-timeline-link\&quot; target=\&quot;_blank\&quot; title=\&quot;http://ift.tt/1Az9Z4l\&quot;&gt;&lt;span class=\&quot;tco-ellipsis\&quot;&gt;&lt;/span&gt;&lt;span class=\&quot;invisible\&quot;&gt;http://&lt;/span&gt;&lt;span class=\&quot;js-display-url\&quot;&gt;ift.tt/1Az9Z4l&lt;/span&gt;&lt;span class=\&quot;invisible\&quot;&gt;&lt;/span&gt;&lt;span class=\&quot;tco-ellipsis\&quot;&gt;&lt;span class=\&quot;invisible\&quot;&gt;&amp;#xA0;&lt;/span&gt;&lt;/span&gt;&lt;/a&gt; ===== &lt;a href=\&quot;http://t.co/tOpip4QwzM\&quot; rel=\&quot;nofollow\&quot; dir=\&quot;ltr\&quot; data-expanded-url=\&quot;http://androidanalytic.com\&quot; class=\&quot;twitter-timeline-link\&quot; target=\&quot;_blank\&quot; title=\&quot;http://androidanalytic.com\&quot;&gt;&lt;span class=\&quot;tco-ellipsis\&quot;&gt;&lt;/span&gt;&lt;span class=\&quot;invisible\&quot;&gt;http://&lt;/span&gt;&lt;span class=\&quot;js-display-url\&quot;&gt;androidanalytic.com&lt;/span&gt;&lt;span class=\&quot;invisible\&quot;&gt;&lt;/span&gt;&lt;span class=\&quot;tco-ellipsis\&quot;&gt;&lt;span class=\&quot;invisible\&quot;&gt;&amp;#xA0;&lt;/span&gt;&lt;/span&gt;&lt;/a&gt;&quot;,
+        &quot;retweeted&quot;: false,
+        &quot;is_reply&quot;: false,
+        &quot;user_mentions&quot;: [&quot;&quot;],
+        &quot;user&quot;: {
+            &quot;id_str&quot;: &quot;2780229181&quot;,
+            &quot;id&quot;: &quot;2780229181&quot;,
+            &quot;name&quot;: &quot;Android Analytics&quot;,
+            &quot;screen_name&quot;: &quot;AndroidAnalytic&quot;,
+            &quot;lang&quot;: &quot;en&quot;
+        }
+    }
+</code></pre>
+</td><td class="code"><pre class="source-block"><code>    stream: function(url, options) {
+        debug(&#39;Streaming %s&#39;, url);
+
+        var client = this;
+        var id = url;
+
+        if (url === &#39;#direct&#39;) {
+            url = &#39;https://twitter.com/direct_messages/&#39;;
+        }
+
+        if (! options) {
+            options = {};
+        }
+
+</code></pre></td></tr><tr id="section-4"><td class="docs"><div class="pilwrap"><a href="#section-4" class="pilcrow">&#182;</a></div><p>We always require cb</p>
+
+</td><td class="code"><pre class="source-block"><code>        if (! options.cb) {
+            options.cb = function(tweet, stream) {
+                console.log(&#39;Tweet: %j. Stream: %s&#39;, tweet, stream.url);
+            };
+        }
+
+</code></pre></td></tr><tr id="section-5"><td class="docs"><div class="pilwrap"><a href="#section-5" class="pilcrow">&#182;</a></div><p>If streaming record with this URL already exists, just add additional callback into cb array</p>
+
+</td><td class="code"><pre class="source-block"><code>        if (this.currentStreams[ id ]) {
+            debug(&#39;Stream for %s already exists. Adding callback.&#39;);
+            this.currentStreams[ id ].cb.push( options.cb );
+            this.resumeStream();
+            return this;
+        }
+
+        this.api.newWindowWithId(url, id, &#39;&#39;, function(err, res) {
+            if (err || !res) {
+                return;
+            }
+
+            var windowHandleId = res.value;
+
+            debug(&quot;Opened new window %s for url %s&quot;, windowHandleId, url);
+
+</code></pre></td></tr><tr id="section-6"><td class="docs"><div class="pilwrap"><a href="#section-6" class="pilcrow">&#182;</a></div><p>Before streaming from this page, remove current tweets from it,
+so only new ones are streamed.</p>
+
+</td><td class="code"><pre class="source-block"><code>            if (options.onlyNew) {
+                this.waitFor(&#39;#content-main-heading&#39;)
+                    .execute(&#39;if (window.$) $(&quot;li.stream-item&quot;).remove();&#39;);
+            }
+
+            var cb = options.cb;
+            delete options.cb;
+
+            var stream = _.extend({
+                id  : windowHandleId,
+                cb  : [ cb ],
+                url : url
+            }, options);
+
+            client.currentStreams[ id ] = stream;
+
+            client.resumeStream();
+        });
+    },
+
+</code></pre></td></tr><tr id="section-7"><td class="docs"><div class="pilwrap"><a href="#section-7" class="pilcrow">&#182;</a></div><p><strong>Stream Direct Messages</strong></p>
+<p>Special case of streaming.</p>
+
+</td><td class="code"><pre class="source-block"><code>    streamDirectMessages: function(options) {
+        return this.stream(&#39;#direct&#39;, options);
+    },
+
+</code></pre></td></tr><tr id="section-8"><td class="docs"><div class="pilwrap"><a href="#section-8" class="pilcrow">&#182;</a></div><p>This function used internally.</p>
+<p>This function run on each streaming cycle. Scans all streaming tabs, and runs callback for each
+<code>new-ish</code> tweet. </p>
+
+</td><td class="code"><pre class="source-block"><code>    _streamCycle: function() {
+        var client = this;
+
+        Object.keys(this.currentStreams).forEach(function(id) {
+            var stream = this.currentStreams[id];
+            var url = stream.url;
+
+            var api = this.api
+                .call(function() {
+                    debug(&#39;Checking window %s for url %s&#39;, stream.id, url);
+                })
+                .window(stream.id);
+
+            if (id === &#39;#direct&#39;) {
+                console.log(&#39;No direct messages streaming yet.&#39;);
+            }
+            else {
+                api.getTweets(function(err, tweets) {
+                    if (err) {
+                        return;
+                    }
+
+                    debug(&#39;found %d tweets&#39;, tweets.length);
+
+                    tweets.reverse().forEach(function(item) {
+                        var tweet = new Tweet(item);
+                        stream.cb.forEach(function(cb) {
+                            cb.call(client, tweet, stream);
+                        });
+                    });
+                })
+                .execute(&#39;if (window.$) $(&quot;li.stream-item&quot;).remove();&#39;);
+            }
+        }.bind(this));
+    },
+
+</code></pre></td></tr><tr id="section-9"><td class="docs"><div class="pilwrap"><a href="#section-9" class="pilcrow">&#182;</a></div><p><strong>stopStreaming</strong></p>
+<p>Stops streaming for particular URL. It will find tab where this URL is opened,
+close this tab and also remove reference to it from array of URL to scan
+on each Stream Cycle.</p>
+
+</td><td class="code"><pre class="source-block"><code>    stopStreaming: function(url) {
+        var stream = this.currentStreams[url];
+
+        if (! stream) {
+            debug(&#39;Stream for &#39; + url + &#39; is not present.&#39;);
+            return;
+        }
+
+        debug(&#39;Stopping stream for url %s&#39;, url);
+
+        this.api.window(stream.id)
+                .window(); // Close window
+
+        delete this.currentStreams[url];
+
+        if (Object.keys(this.currentStreams).length &lt; 1) {
+            this.pauseStream();
+        }
+    },
+
+</code></pre></td></tr><tr id="section-10"><td class="docs"><div class="pilwrap"><a href="#section-10" class="pilcrow">&#182;</a></div><p><strong>stopStreamingAll</strong></p>
+<p>This will iterate over all URLs and stop streaming for each one.</p>
+
+</td><td class="code"><pre class="source-block"><code>    stopStreamingAll: function() {
+        Object.keys( this.currentStreams ).forEach(function(url) {
+            this.stopStreaming(url);
+        }.bind(this));
+
+        this.pauseStream();
+    },
+
+</code></pre></td></tr><tr id="section-11"><td class="docs"><div class="pilwrap"><a href="#section-11" class="pilcrow">&#182;</a></div><p><strong>Pause streaming</strong></p>
+<p>If you need to react on tweet, update account or do something else, you need to pause streaming.
+Calling <code>.pauseStream</code> will switch focus to <code>main</code> tab, so no streaming tabs affected.</p>
+
+</td><td class="code"><pre class="source-block"><code>    pauseStream: function() {
+        if (this.streamingInterval) {
+            debug(&#39;Pausing streaming&#39;);
+            this.streamingInterval = clearInterval(this.streamingInterval);
+            this.api.window(this.mainWindowId);
+        }
+    },
+
+</code></pre></td></tr><tr id="section-12"><td class="docs"><div class="pilwrap"><a href="#section-12" class="pilcrow">&#182;</a></div><p><strong>Resume streaming</strong></p>
+<p>Once you are ready to continue streaming (finished replying to a tweet for example), call <code>.resumeStream()</code>.</p>
+
+</td><td class="code"><pre class="source-block"><code>    resumeStream: function() {
+        if (! this.streamingInterval) {
+            debug(&#39;Resuming streaming.&#39;);
+            this._streamCycle();
+            this.streamingInterval = setInterval(this._streamCycle.bind(this), 15000);
+        }
+    }
+};
+
+</code></pre></td></tr></tbody></table><div id="generated">generated Mon Apr 27 2015 23:34:55 GMT-0500 (CDT)  </div></div></body></html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html><html><head><title>tweet.js</title><meta http-equiv="Content-Type" content="text/html" charset="UTF-8"><link rel="stylesheet" media="all" href="//fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600"><link rel="stylesheet" media="all" href="../docco.css"><script src="../assets/prettify.js"></script><link rel="stylesheet" media="all" href="../assets/prettify.css"><script>window.addEventListener('DOMContentLoaded', function(e) {
+  var items = document.querySelectorAll('pre');
+  Array.prototype.forEach.call(items, function (item) {
+    if (item.querySelectorAll('code').length > 0) {
+      item.classList.add('prettyprint');
+    }
+  });
+  prettyPrint();
+});
+</script></head><body><div id="container"><div id="background"></div><div id="jump_to">Jump To &hellip;<div id="jump_wrapper"><div id="jump_page"><a href="../index.html" class="source"><span class="file_name">README</span></a><a href="../lib/streaming.js.html" class="source "><span class="base_path">lib / </span><span class="file_name">streaming.js</span></a><a href="../lib/tweet.js.html" class="source selected"><span class="base_path">lib / </span><span class="file_name">tweet.js</span></a></div></div></div><table cellpadding="0" cellspacing="0"><thead><tr><th class="docs"><h1>tweet.js</h1><div class="filepath">lib/</div></th><th class="code"></th></tr></thead><tbody><tr id="section-1"><td class="docs"><div class="pilwrap"><a href="#section-1" class="pilcrow">&#182;</a></div><div class="dox"><div class="summary"><p>eslint camelcase: 0</p></div><div class="body"></div></div>
+</td><td class="code"><pre class="source-block"><code>var cheerio = require(&#39;cheerio&#39;);
+
+var Tweet = function(html) {
+    var $ = cheerio.load(html);
+
+    var $tweet = $(&#39;.tweet&#39;);
+
+    this.id = this.id_str = $tweet.attr(&#39;data-tweet-id&#39;);
+    this.created_at = new Date( Number($(&#39;._timestamp&#39;).attr(&#39;data-time-ms&#39;)) );
+    this.text = $(&#39;.tweet-text&#39;).text();
+    this.html = $(&#39;.tweet-text&#39;).html();
+    this.retweet_id = $tweet.attr(&#39;data-retweet-id&#39;);
+    this.retweeted = $(&#39;.js-retweet-text&#39;).length &gt; 0;
+    this.is_reply = $tweet.attr(&#39;data-is-reply-to&#39;) === &#39;true&#39;;
+
+    this.user_mentions = ($tweet.attr(&#39;data-mentions&#39;) || &#39;&#39;).split(&#39; &#39;);
+
+    this.user = {};
+    this.user.id = this.user.id_str = $tweet.attr(&#39;data-user-id&#39;);
+    this.user.name = $tweet.attr(&#39;data-name&#39;);
+    this.user.screen_name = $tweet.attr(&#39;data-screen-name&#39;);
+    this.user.lang = $(&#39;.tweet-text&#39;).attr(&#39;lang&#39;) || &#39;en&#39;;
+
+    return this;
+};
+
+module.exports = Tweet;
+
+</code></pre></td></tr></tbody></table><div id="generated">generated Mon Apr 27 2015 23:34:55 GMT-0500 (CDT)  </div></div></body></html>
